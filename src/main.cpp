@@ -55,25 +55,36 @@ N Times:
   fflush(stdout);                                                              \
   vexDelay(500);
 
+VDP::Schema::PartPtr make_schema() {
+  using namespace VDP::Schema;
+  VDP::Schema::PartPtr schema{
+      new Record("Motor", {
+                              new String("BrakeMode"),
+                              new Double("Position(deg)"),
+                              new Double("Velocity(dps)"),
+                          })};
+  return schema;
+}
+
 int main() {
   printf("helloo\n");
   FLUSH;
+  VDP::Schema::PartPtr schema = make_schema();
 
-  VDP::Schema::Part *p = new VDP::Schema::Double("example value");
-  VDP::Schema::Part *p2 = new VDP::Schema::String();
+  std::string schema_str = schema->pretty_print();
+  printf("Schema In:\n%s", schema_str.c_str());
+
   VDP::Packet pac{};
 
-  p->add_to_schema(pac);
+  schema->write_to_schema(pac);
 
-  int i = 0;
-  for (const uint8_t d : pac) {
-    printf("%02x ", (int)d);
-    if (i % 16 == 0) {
-      printf("\n");
-    }
-    i++;
-  }
-  printf("\n");
+  VDP::dump_packet(pac);
+
+  VDP::Schema::PartPtr rev = VDP::decode_schema(std::move(pac));
+  std::string rev_str = schema->pretty_print();
+
+  printf("Schema Out:\n%s", rev_str.c_str());
+
   // printf("Done");
   // FLUSH
 }

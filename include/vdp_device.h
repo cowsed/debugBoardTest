@@ -6,6 +6,7 @@
 namespace VDP {
 class Device {
   Device(int32_t port);
+  void BroadcastSchema(const Schema::PartPtr schema);
 
 private:
   int32_t port;
