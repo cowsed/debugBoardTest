@@ -7,9 +7,9 @@
 /*                                                                            */
 /*----------------------------------------------------------------------------*/
 #include "vdp.h"
+#include "vdp_builtins.h"
 #include "vex.h"
 #include <vector>
-
 using namespace vex;
 
 // A global instance of vex::brain used for printing to the V5 brain screen
@@ -53,25 +53,22 @@ N Times:
 */
 #define FLUSH                                                                  \
   fflush(stdout);                                                              \
-  vexDelay(500);
+  vexDelay(1000);
 
-VDP::Schema::PartPtr make_schema() {
-  using namespace VDP::Schema;
-  VDP::Schema::PartPtr schema{
-      new Record("Motor", {
-                              new String("BrakeMode"),
-                              new Double("Position(deg)"),
-                              new Double("Velocity(dps)"),
-                          })};
-  return schema;
-}
+vex::motor mot1{vex::PORT10};
 
 int main() {
-  printf("helloo\n");
-  FLUSH;
-  VDP::Schema::PartPtr schema = make_schema();
+  vexDisplayPrintf(10, 10, true, "Hello");
+  VDP::Schema::PartPtr schema{new VDP::Schema::Motor("Motor 1", mot1)};
+
+  vexDisplayPrintf(10, 10, true, "Made Schema");
 
   std::string schema_str = schema->pretty_print();
+
+  vexDisplayPrintf(10, 10, true, "PPRinted schema");
+
+  vexDisplayPrintf(10, 50, true, schema_str.c_str());
+
   printf("Schema In:\n%s", schema_str.c_str());
 
   VDP::Packet pac{};

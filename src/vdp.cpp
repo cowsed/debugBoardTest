@@ -1,4 +1,5 @@
 #include "vdp.h"
+#include "vex.h"
 #include <cstring>
 #include <stdio.h>
 
@@ -107,6 +108,14 @@ void Part::write_uint32(Packet &sofar, uint32_t val) {
   }
 }
 
+void Part::write_double(Packet &sofar, double val) {
+  std::array<uint8_t, sizeof(val)> bytes;
+  std::memcpy(bytes.data(), &val, sizeof(val));
+  for (uint8_t b : bytes) {
+    sofar.push_back(b);
+  }
+}
+
 Record::Record(std::string name, std::vector<Part *> parts)
     : Part(name), fields() {
   fields.reserve(parts.size());
@@ -114,6 +123,11 @@ Record::Record(std::string name, std::vector<Part *> parts)
     fields.emplace_back(f);
   }
 }
+Record::Record(std::string name) : Part(name), fields({}) {}
+void Record::setFields(std::vector<PartPtr> fs) { fields = fs; }
+
+Record::Record(std::string name, std::vector<PartPtr> parts)
+    : Part(name), fields(parts) {}
 
 Record::Record(std::string name, PacketReader &reader) : Part(name), fields() {
   uint32_t size = reader.read_uint32();
@@ -122,19 +136,31 @@ Record::Record(std::string name, PacketReader &reader) : Part(name), fields() {
     fields.push_back(make_decoder(reader));
   }
 }
-
+void Record::fetch() {
+  for (auto &field : fields) {
+    field->fetch();
+  }
+}
 void Record::write_to_schema(Packet &sofar) const {
+  vexDisplayPrintf(10, 10, true, "Writing record to schema");
+  vexDelay(1000);
+
   sofar.push_back((uint8_t)Type::Record); // Type
   write_null_terminated(sofar, name);     // Name
   write_uint32(sofar, fields.size());     // Number of fields
-
   for (const PartPtr &field : fields) {
     field->write_to_schema(sofar);
   }
 }
 void Record::write_message(Packet &sofar) const { TODO(); }
 
-Double::Double(std::string name) : Part(name) {}
+Double::Double(std::string name, FetchFunc fetcher)
+    : Part(name), fetcher(fetcher) {}
+
+void Double::fetch() { value = fetcher(); }
+
+void Double::setValue(double new_value) { value = new_value; }
+
 void Double::write_to_schema(Packet &sofar) const {
   sofar.push_back((uint8_t)Type::Double); // Type
   write_null_terminated(sofar, name);     // Name
@@ -153,9 +179,13 @@ void String::pprint(std::stringstream &ss, size_t indent) const {
 }
 
 void Record::pprint(std::stringstream &ss, size_t indent) const {
+  vexDisplayPrintf(10, 10, true, "PPrinting Record Schema");
+  vexDisplayPrintf(10, 10, true, "Size: %d         ", fields.size());
+
   add_indents(ss, indent);
   ss << name << ": record[" << fields.size() << "]{\n";
   for (const auto &f : fields) {
+
     f->pprint(ss, indent + 1);
     ss << '\n';
   }
@@ -163,7 +193,12 @@ void Record::pprint(std::stringstream &ss, size_t indent) const {
   ss << "}\n";
 }
 
-String::String(std::string name) : Part(name) {}
+String::String(std::string name, std::function<std::string()> fetcher)
+    : Part(name), fetcher(fetcher) {}
+
+void String::fetch() { value = fetcher(); }
+
+void String::setValue(std::string new_value) { value = new_value; }
 
 void String::write_to_schema(Packet &sofar) const {
   sofar.push_back((uint8_t)Type::String); // Type
@@ -173,9 +208,9 @@ void String::write_to_schema(Packet &sofar) const {
 void String::write_message(Packet &sofar) const { TODO(); }
 
 } // namespace Schema
+
 Schema::PartPtr decode_schema(Packet &&packet) {
   Schema::PacketReader reader(packet);
-
   return make_decoder(reader);
 }
 

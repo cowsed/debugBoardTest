@@ -2,11 +2,22 @@
 
 #include "vdp.h"
 #include "vex.h"
-
+#include <unordered_map>
 namespace VDP {
 class Device {
+  enum class BroadcastType : uint8_t {
+    Schema = 0,
+    Message = 1,
+  };
+  enum class Direction : uint8_t {
+    FromPeripheral = 0,
+    FromController = 1,
+  };
+  static constexpr uint8_t version = 0;
+
+  using Channels = std::vector<VDP::Schema::PartPtr>;
   Device(int32_t port);
-  void BroadcastSchema(const Schema::PartPtr schema);
+  void SetSchema(Channels chans);
 
 private:
   int32_t port;
