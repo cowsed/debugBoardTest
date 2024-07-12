@@ -21,8 +21,9 @@ public:
   PacketReader(Packet pac);
   uint8_t get_byte();
   Type get_type();
-  uint32_t read_uint32();
+  uint32_t get_uint32();
   std::string get_string();
+  double get_double();
 
 private:
   Packet pac;
@@ -33,16 +34,19 @@ class Part {
 public:
   Part(std::string name);
   std::string pretty_print() const;
+  std::string pretty_print_data() const;
 
   static void write_null_terminated(Packet &sofra, const std::string &str);
   static void write_uint32(Packet &sofar, uint32_t val);
   static void write_double(Packet &sofar, double val);
 
   virtual void write_to_schema(Packet &sofar) const = 0;
-  virtual void write_message(Packet &sofar) const = 0;
+  virtual void write_to_message(Packet &sofar) const = 0;
+  virtual void read_from_message(PacketReader &reader) = 0;
 
   virtual void fetch() = 0;
   virtual void pprint(std::stringstream &ss, size_t indent) const = 0;
+  virtual void pprint_data(std::stringstream &ss, size_t indent) const = 0;
 
 protected:
   std::string name;
@@ -56,11 +60,13 @@ public:
   Record(std::string name, std::vector<PartPtr> fields);
   Record(std::string name, PacketReader &reader);
   void write_to_schema(Packet &sofar) const override;
-  void write_message(Packet &sofar) const override;
+  void write_to_message(Packet &sofar) const override;
+  void read_from_message(PacketReader &reader) override;
   void fetch() override;
   void setFields(std::vector<PartPtr> fields);
 
   void pprint(std::stringstream &ss, size_t indent) const override;
+  void pprint_data(std::stringstream &ss, size_t indent) const override;
 
 private:
   std::vector<PartPtr> fields;
@@ -72,11 +78,14 @@ public:
   Double(
       std::string name, FetchFunc fetcher = []() { return 0; });
   void write_to_schema(Packet &sofar) const override;
-  void write_message(Packet &sofar) const override;
+  void write_to_message(Packet &sofar) const override;
+  void read_from_message(PacketReader &reader) override;
+
   void fetch() override;
   void setValue(double new_value);
 
   void pprint(std::stringstream &ss, size_t indent) const override;
+  void pprint_data(std::stringstream &ss, size_t indent) const override;
 
 private:
   FetchFunc fetcher;
@@ -89,11 +98,13 @@ public:
   String(
       std::string name, FetchFunc fetcher = []() { return "no value"; });
   void write_to_schema(Packet &sofar) const override;
-  void write_message(Packet &sofar) const override;
+  void write_to_message(Packet &sofar) const override;
+  void read_from_message(PacketReader &reader) override;
   void fetch() override;
   void setValue(std::string new_value);
 
   void pprint(std::stringstream &ss, size_t indent) const override;
+  void pprint_data(std::stringstream &ss, size_t indent) const override;
 
 private:
   FetchFunc fetcher;

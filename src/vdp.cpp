@@ -25,8 +25,13 @@ std::string Part::pretty_print() const {
   this->pprint(ss, 0);
   return ss.str();
 }
+std::string Part::pretty_print_data() const {
+  std::stringstream ss;
+  this->pprint_data(ss, 0);
+  return ss.str();
+}
 
-PacketReader::PacketReader(Packet pac) : pac(pac) {}
+PacketReader::PacketReader(Packet pac) : pac(pac), read_head(0) {}
 
 uint8_t PacketReader::get_byte() {
   uint8_t b = pac[read_head];
@@ -40,7 +45,7 @@ Type PacketReader::get_type() {
   return (Type)val;
 }
 
-uint32_t PacketReader::read_uint32() {
+uint32_t PacketReader::get_uint32() {
   uint32_t val = 0;
   for (size_t b = 0; b < sizeof(val); b++) {
     uint8_t byte = get_byte();
@@ -48,6 +53,18 @@ uint32_t PacketReader::read_uint32() {
   }
   return val;
 }
+
+double PacketReader::get_double() {
+  double val = 0;
+  uint8_t data[sizeof(val)];
+  for (size_t b = 0; b < sizeof(val); b++) {
+    uint8_t byte = get_byte();
+    data[b] = byte;
+  }
+  std::memcpy(&val, data, sizeof(val));
+  return val;
+}
+
 std::string PacketReader::get_string() {
   std::string s;
 
@@ -130,7 +147,7 @@ Record::Record(std::string name, std::vector<PartPtr> parts)
     : Part(name), fields(parts) {}
 
 Record::Record(std::string name, PacketReader &reader) : Part(name), fields() {
-  uint32_t size = reader.read_uint32();
+  uint32_t size = reader.get_uint32();
   fields.reserve(size);
   for (size_t i = 0; i < size; i++) {
     fields.push_back(make_decoder(reader));
@@ -142,9 +159,6 @@ void Record::fetch() {
   }
 }
 void Record::write_to_schema(Packet &sofar) const {
-  vexDisplayPrintf(10, 10, true, "Writing record to schema");
-  vexDelay(1000);
-
   sofar.push_back((uint8_t)Type::Record); // Type
   write_null_terminated(sofar, name);     // Name
   write_uint32(sofar, fields.size());     // Number of fields
@@ -152,7 +166,17 @@ void Record::write_to_schema(Packet &sofar) const {
     field->write_to_schema(sofar);
   }
 }
-void Record::write_message(Packet &sofar) const { TODO(); }
+void Record::write_to_message(Packet &sofar) const {
+  for (auto f : fields) {
+    f->write_to_message(sofar);
+  }
+}
+
+void Record::read_from_message(PacketReader &reader) {
+  for (auto f : fields) {
+    f->read_from_message(reader);
+  }
+}
 
 Double::Double(std::string name, FetchFunc fetcher)
     : Part(name), fetcher(fetcher) {}
@@ -166,27 +190,48 @@ void Double::write_to_schema(Packet &sofar) const {
   write_null_terminated(sofar, name);     // Name
 }
 
-void Double::write_message(Packet &sofar) const { TODO(); }
+void Double::write_to_message(Packet &sofar) const {
+  write_double(sofar, value);
+}
+void Double::read_from_message(PacketReader &reader) {
+  value = reader.get_double();
+}
 
 void Double::pprint(std::stringstream &ss, size_t indent) const {
   add_indents(ss, indent);
   ss << name << ": double";
+}
+void Double::pprint_data(std::stringstream &ss, size_t indent) const {
+  add_indents(ss, indent);
+  ss << name << ":\t" << value;
 }
 
 void String::pprint(std::stringstream &ss, size_t indent) const {
   add_indents(ss, indent);
   ss << name << ": string";
 }
+void String::pprint_data(std::stringstream &ss, size_t indent) const {
+  add_indents(ss, indent);
+  ss << name << ":\t" << value;
+}
 
 void Record::pprint(std::stringstream &ss, size_t indent) const {
-  vexDisplayPrintf(10, 10, true, "PPrinting Record Schema");
-  vexDisplayPrintf(10, 10, true, "Size: %d         ", fields.size());
-
   add_indents(ss, indent);
   ss << name << ": record[" << fields.size() << "]{\n";
   for (const auto &f : fields) {
 
     f->pprint(ss, indent + 1);
+    ss << '\n';
+  }
+  add_indents(ss, indent);
+  ss << "}\n";
+}
+void Record::pprint_data(std::stringstream &ss, size_t indent) const {
+  add_indents(ss, indent);
+  ss << name << ": record[" << fields.size() << "]{\n";
+  for (const auto &f : fields) {
+
+    f->pprint_data(ss, indent + 1);
     ss << '\n';
   }
   add_indents(ss, indent);
@@ -205,8 +250,13 @@ void String::write_to_schema(Packet &sofar) const {
   write_null_terminated(sofar, name);     // Name
 }
 
-void String::write_message(Packet &sofar) const { TODO(); }
+void String::write_to_message(Packet &sofar) const {
+  write_null_terminated(sofar, value);
+}
 
+void String::read_from_message(PacketReader &reader) {
+  value = reader.get_string();
+}
 } // namespace Schema
 
 Schema::PartPtr decode_schema(Packet &&packet) {

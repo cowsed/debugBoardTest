@@ -82,6 +82,22 @@ int main() {
 
   printf("Schema Out:\n%s", rev_str.c_str());
 
+  VDP::Packet msg;
+  mot1.spin(vex::fwd, 2.0, vex::voltageUnits::volt);
+  while (true) {
+    msg.clear();
+    schema->fetch();
+    schema->write_to_message(msg);
+
+    // VDP::dump_packet(msg);
+    VDP::Schema::PacketReader reader{msg};
+    schema->read_from_message(reader);
+    std::string data_str = schema->pretty_print_data();
+    printf("Data:\n%s", data_str.c_str());
+    // schema->
+
+    vexDelay(50);
+  }
   // printf("Done");
   // FLUSH
 }
