@@ -206,6 +206,34 @@ void Double::pprint_data(std::stringstream &ss, size_t indent) const {
   ss << name << ":\t" << value;
 }
 
+Uint8::Uint8(std::string name, FetchFunc fetcher)
+    : Part(name), fetcher(fetcher) {}
+
+void Uint8::fetch() { value = fetcher(); }
+
+void Uint8::setValue(uint8_t new_value) { value = new_value; }
+
+void Uint8::write_to_schema(Packet &sofar) const {
+  sofar.push_back((uint8_t)Type::Double); // Type
+  write_null_terminated(sofar, name);     // Name
+}
+
+void Uint8::write_to_message(Packet &sofar) const {
+  write_double(sofar, value);
+}
+void Uint8::read_from_message(PacketReader &reader) {
+  value = reader.get_double();
+}
+
+void Uint8::pprint(std::stringstream &ss, size_t indent) const {
+  add_indents(ss, indent);
+  ss << name << ": double";
+}
+void Uint8::pprint_data(std::stringstream &ss, size_t indent) const {
+  add_indents(ss, indent);
+  ss << name << ":\t" << (int)value;
+}
+
 void String::pprint(std::stringstream &ss, size_t indent) const {
   add_indents(ss, indent);
   ss << name << ": string";

@@ -92,6 +92,26 @@ private:
   double value;
 };
 
+class Uint8 : public Part {
+public:
+  using FetchFunc = std::function<uint8_t()>;
+  Uint8(
+      std::string name, FetchFunc fetcher = []() { return 0; });
+  void write_to_schema(Packet &sofar) const override;
+  void write_to_message(Packet &sofar) const override;
+  void read_from_message(PacketReader &reader) override;
+
+  void fetch() override;
+  void setValue(uint8_t new_value);
+
+  void pprint(std::stringstream &ss, size_t indent) const override;
+  void pprint_data(std::stringstream &ss, size_t indent) const override;
+
+private:
+  FetchFunc fetcher;
+  uint8_t value;
+};
+
 class String : public Part {
 public:
   using FetchFunc = std::function<std::string()>;

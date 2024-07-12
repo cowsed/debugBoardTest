@@ -3,7 +3,7 @@
 #include "vdp.h"
 #include "vex.h"
 #include <unordered_map>
-namespace VDP {
+namespace VDB {
 class Device {
   enum class BroadcastType : uint8_t {
     Schema = 0,
@@ -14,15 +14,19 @@ class Device {
     FromController = 1,
   };
   static constexpr uint8_t version = 0;
+  static constexpr uint8_t delimeter = 0x00;
 
   using Channels = std::vector<VDP::Schema::PartPtr>;
   Device(int32_t port);
   void SetSchema(Channels chans);
 
+  static void CobsEncode(const VDP::Packet &in, VDP::Packet &out);
+  static void CobsDecode(const VDP::Packet &in, VDP::Packet &out);
+
 private:
   int32_t port;
 };
-} // namespace VDP
+} // namespace VDB
 
 // // define your global instances of motors and other devices here
 // #define MIKE_BUFLEN 32

@@ -16,7 +16,7 @@ private:
 
   std::shared_ptr<Double> pos;
   std::shared_ptr<Double> vel;
-  std::shared_ptr<Double> temp;
+  std::shared_ptr<Uint8> temp;
   std::shared_ptr<Double> voltage;
   std::shared_ptr<Double> current;
 };

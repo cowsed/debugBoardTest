@@ -37,6 +37,7 @@
         "utility": "cpp",
         "typeinfo": "cpp",
         "memory": "cpp",
-        "map": "cpp"
+        "map": "cpp",
+        "string": "cpp"
     }
 }
