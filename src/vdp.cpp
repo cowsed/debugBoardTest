@@ -40,8 +40,7 @@ uint8_t PacketReader::get_byte() {
 }
 
 Type PacketReader::get_type() {
-  uint8_t val = pac[read_head];
-  read_head++;
+  uint8_t val = get_byte();
   return (Type)val;
 }
 
@@ -55,6 +54,7 @@ std::string PacketReader::get_string() {
     }
     s.push_back(c);
   }
+  printf("read string: %s\n", s.c_str());
   return s;
 }
 void PacketWriter::write_byte(uint8_t b) { sofar.push_back(b); }
@@ -65,8 +65,18 @@ void PacketWriter::write_string(const std::string &str) {
   sofar.push_back(0);
 }
 void PacketWriter::clear() { sofar.clear(); }
+size_t PacketWriter::size() { return sofar.size(); }
 
 const Packet &PacketWriter::get_packet() const { return sofar; }
+
+void PacketWriter::write_schema(PartPtr part) {
+  clear();
+  part->write_schema(*this);
+}
+void PacketWriter::write_message(PartPtr part) {
+  clear();
+  part->write_message(*this);
+}
 
 std::string to_string(Type t) {
   switch (t) {
@@ -78,9 +88,27 @@ std::string to_string(Type t) {
     return "double";
   case Type::Double:
     return "double";
-  default:
-    return "<<UNKNOWN TYPE>>";
+
+  case Type::Uint8:
+    return "uint8";
+  case Type::Uint16:
+    return "uint16";
+  case Type::Uint32:
+    return "uint32";
+  case Type::Uint64:
+    return "uint64";
+
+  case Type::Int8:
+    return "int8";
+  case Type::Int16:
+    return "int16";
+  case Type::Int32:
+    return "int32";
+  case Type::Int64:
+    return "int64";
   }
+
+  return "<<UNKNOWN TYPE>>";
 }
 void add_indents(std::stringstream &ss, size_t indent) {
   for (size_t i = 0; i < indent; i++) {
@@ -89,19 +117,44 @@ void add_indents(std::stringstream &ss, size_t indent) {
 }
 
 PartPtr make_decoder(PacketReader &pac) {
+  printf("make_decoder entered\n");
   Type t = pac.get_type();
+  std::string tname = to_string(t);
   std::string name = pac.get_string();
+  printf("Making decoder for '%s' of type %s\n", name.c_str(), tname.c_str());
+  fflush(stdout);
+  vexDelay(400);
+
   switch (t) {
-  case Type::Double:
-    return PartPtr(new Double(name));
   case Type::String:
     return PartPtr(new String(name));
   case Type::Record:
     return PartPtr(new Record(name, pac));
-  default:
-    return nullptr;
-    break;
+
+  case Type::Float:
+    return PartPtr(new Float(name));
+  case Type::Double:
+    return PartPtr(new Double(name));
+
+  case Type::Uint8:
+    return PartPtr(new Uint8(name));
+  case Type::Uint16:
+    return PartPtr(new Uint16(name));
+  case Type::Uint32:
+    return PartPtr(new Uint32(name));
+  case Type::Uint64:
+    return PartPtr(new Uint64(name));
+
+  case Type::Int8:
+    return PartPtr(new Int8(name));
+  case Type::Int16:
+    return PartPtr(new Int16(name));
+  case Type::Int32:
+    return PartPtr(new Int32(name));
+  case Type::Int64:
+    return PartPtr(new Int64(name));
   }
+  return nullptr;
 }
 
 Part::Part(std::string name) : name(name) {}
@@ -120,7 +173,12 @@ Record::Record(std::string name, std::vector<PartPtr> parts)
     : Part(name), fields(parts) {}
 
 Record::Record(std::string name, PacketReader &reader) : Part(name), fields() {
+  // Name and type already read, only need to read number of fields before child
+  // data shows up
   uint32_t size = reader.get_number<SizeT>();
+  printf("Found %lu fields\n", size);
+  fflush(stdout);
+  vexDelay(400);
   fields.reserve(size);
   for (size_t i = 0; i < size; i++) {
     fields.push_back(make_decoder(reader));
@@ -139,9 +197,10 @@ void Record::write_schema(PacketWriter &sofar) const {
     field->write_schema(sofar);
   }
 }
-void Record::write_to_message(PacketWriter &sofar) const {
+void Record::write_message(PacketWriter &sofar) const {
+  printf("Writer size: %d\n", sofar.size());
   for (auto f : fields) {
-    f->write_to_message(sofar);
+    f->write_message(sofar);
   }
 }
 
@@ -195,7 +254,7 @@ void String::write_schema(PacketWriter &sofar) const {
   sofar.write_string(name);       // Name
 }
 
-void String::write_to_message(PacketWriter &sofar) const {
+void String::write_message(PacketWriter &sofar) const {
   sofar.write_string(value);
 }
 
@@ -205,6 +264,10 @@ void String::read_from_message(PacketReader &reader) {
 } // namespace Schema
 
 Schema::PartPtr decode_schema(const Packet &packet) {
+  printf("Decode schema\n");
+  fflush(stdout);
+  vexDelay(400);
+
   Schema::PacketReader reader(packet);
   return make_decoder(reader);
 }

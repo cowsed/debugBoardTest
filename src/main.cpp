@@ -68,33 +68,47 @@ int main() {
   printf("Schema In:\n%s", schema_str.c_str());
 
   VDP::Schema::PacketWriter writer;
-  // VDP::Schema::PacketReader reader;
 
   schema->write_schema(writer);
 
   VDP::dump_packet(writer.get_packet());
 
-  VDP::Schema::PartPtr rev =
-      VDP::decode_schema(VDP::Packet{writer.get_packet()});
+  printf("Decoding\n");
+  fflush(stdout);
+  vexDelay(400);
+  VDP::Packet pac{writer.get_packet()};
+  printf("Got packet\n");
+  fflush(stdout);
+  vexDelay(400);
+  VDP::Schema::PartPtr rev = VDP::decode_schema(pac);
+  printf("Decoded packet\n");
+  fflush(stdout);
+  vexDelay(400);
 
   std::string rev_str = schema->pretty_print();
 
   printf("Schema Out:\n%s", rev_str.c_str());
+  fflush(stdout);
 
-  // while (true) {
-  //   schema->fetch();
-  //   schema->write_to_message(writer);
+  while (true) {
+    schema->fetch();
+    printf("Fetched:\n");
+    writer.write_message(schema);
+    printf("writer size: %d", writer.size());
 
-  //   VDP::Packet msg = writer.get_packet();
+    VDP::Packet msg = writer.get_packet();
+    VDP::dump_packet(msg);
 
-  //   // VDP::dump_packet(msg);
-  //   VDP::Schema::PacketReader reader{msg};
-  //   schema->read_from_message(reader);
-  //   std::string data_str = schema->pretty_print_data();
-  //   printf("Data:\n%s", data_str.c_str());
+    VDP::Schema::PacketReader reader{msg};
+    schema->read_from_message(reader);
+
+    std::string data_str = schema->pretty_print_data();
+    printf("Data:\n%s", data_str.c_str());
+
+    vexDelay(1000);
+  }
   //   // schema->
 
-  //   vexDelay(50);
   // }
   // printf("Done");
   // FLUSH

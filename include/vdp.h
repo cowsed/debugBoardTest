@@ -1,4 +1,5 @@
 #pragma once
+#include "vex.h"
 #include <array>
 #include <cstdio>
 #include <cstring>
@@ -34,47 +35,9 @@ enum class Type : uint8_t {
 std::string to_string(Type t);
 void add_indents(std::stringstream &ss, size_t indent);
 
-class PacketReader {
-public:
-  PacketReader(Packet pac);
-  uint8_t get_byte();
-  Type get_type();
-  std::string get_string();
-  template <typename Number> Number get_number() {
-    if (read_head + sizeof(Number) >= pac.size()) {
-      printf(
-          "Reading a number at position %d would read past buffer of size %d\n",
-          read_head, pac.size());
-      return 0;
-    }
-  }
+class PacketReader;
+class PacketWriter;
 
-private:
-  Packet pac;
-  size_t read_head;
-};
-
-class PacketWriter {
-public:
-  void clear();
-  void write_byte(uint8_t b);
-
-  void write_type(Type t);
-  void write_string(const std::string &str);
-
-  const Packet &get_packet() const;
-
-  template <typename Number> void write_number(Number n) {
-    std::array<uint8_t, sizeof(Number)> bs;
-    std::memcpy(&bs, &n, sizeof(Number));
-    for (uint8_t b : bs) {
-      write_byte(b);
-    }
-  }
-
-private:
-  Packet sofar;
-};
 class Part {
 public:
   Part(std::string name);
@@ -82,7 +45,7 @@ public:
   std::string pretty_print_data() const;
 
   virtual void write_schema(PacketWriter &sofar) const = 0;
-  virtual void write_to_message(PacketWriter &sofar) const = 0;
+  virtual void write_message(PacketWriter &sofar) const = 0;
   virtual void read_from_message(PacketReader &reader) = 0;
 
   virtual void fetch() = 0;
@@ -94,6 +57,66 @@ protected:
 };
 using PartPtr = std::shared_ptr<Part>;
 
+class PacketReader {
+public:
+  PacketReader(Packet pac);
+  uint8_t get_byte();
+  Type get_type();
+  std::string get_string();
+
+  template <typename Number> Number get_number() {
+    static_assert(std::is_floating_point<Number>::value ||
+                      std::is_integral<Number>::value,
+                  "This function should only be used on numbers");
+
+    printf("Reading number size %d at position %d of %d\n", sizeof(Number),
+           read_head, pac.size());
+    fflush(stdout);
+    vexDelay(400);
+
+    if (read_head + sizeof(Number) >= pac.size()) {
+      printf("Reading a number[%d] at position %d would read past buffer of "
+             "size %d\n",
+             sizeof(Number), read_head, pac.size());
+      return 0;
+    }
+    Number value = 0;
+    std::memcpy(&value, &pac[read_head], sizeof(Number));
+    read_head += sizeof(Number);
+    return value;
+  }
+
+private:
+  Packet pac;
+  size_t read_head;
+};
+
+class PacketWriter {
+public:
+  void clear();
+  size_t size();
+  void write_byte(uint8_t b);
+
+  void write_type(Type t);
+  void write_string(const std::string &str);
+
+  void write_schema(PartPtr part);
+  void write_message(PartPtr part);
+
+  const Packet &get_packet() const;
+
+  template <typename Number> void write_number(Number num) {
+    std::array<uint8_t, sizeof(Number)> bytes;
+    std::memcpy(&bytes, &num, sizeof(Number));
+    for (uint8_t b : bytes) {
+      write_byte(b);
+    }
+  }
+
+private:
+  Packet sofar;
+};
+
 class Record : public Part {
 public:
   using SizeT = uint32_t;
@@ -101,9 +124,14 @@ public:
   Record(std::string name, std::vector<Part *> fields);
   Record(std::string name, std::vector<PartPtr> fields);
   Record(std::string name, PacketReader &reader);
+  // Encode the schema itself for transmission on the wire
   void write_schema(PacketWriter &sofar) const override;
-  void write_to_message(PacketWriter &sofar) const override;
+  // Encode the data currently held according to schema for transmission on the
+  // wire
+  void write_message(PacketWriter &sofar) const override;
+
   void read_from_message(PacketReader &reader) override;
+
   void fetch() override;
   void setFields(std::vector<PartPtr> fields);
 
@@ -120,7 +148,7 @@ public:
   String(
       std::string name, FetchFunc fetcher = []() { return "no value"; });
   void write_schema(PacketWriter &sofar) const override;
-  void write_to_message(PacketWriter &sofar) const override;
+  void write_message(PacketWriter &sofar) const override;
   void read_from_message(PacketReader &reader) override;
   void fetch() override;
   void setValue(std::string new_value);
@@ -135,27 +163,32 @@ private:
 
 // Template to reduce boiler plate for Schema wrappers for simple types
 // Basically fixed size, numeric types  such as uin8_t, uint32, float, double
-template <typename Number, Type schemaType> class NumericPart : public Part {
+template <typename NumT, Type schemaType> class Number : public Part {
 public:
-  using NumberType = Number;
+  using NumberType = NumT;
   static constexpr Type SchemaType = schemaType;
 
   // Checks to make sure this isn't misused
-  static_assert(std::is_floating_point<Number>::value ||
-                    std::is_integral<Number>::value,
+  static_assert(std::is_floating_point<NumberType>::value ||
+                    std::is_integral<NumberType>::value,
                 "Number type this is instantiated with must be floating point "
                 "or integral");
 
-  using FetchFunc = std::function<Number()>;
-  NumericPart(
-      std::string name, FetchFunc fetcher = []() { return (Number)0; })
-      : Part(name), fetcher(fetcher) {}
+  using FetchFunc = std::function<NumberType()>;
+  Number(
+      std::string name, FetchFunc fetcher = []() { return (NumberType)0; })
+      : Part(name), fetcher(fetcher) {
+    std::string s = to_string(SchemaType);
+    printf("Constructed Number %s\n", s.c_str());
+    fflush(stdout);
+    vexDelay(400);
+  }
 
   void write_schema(PacketWriter &sofar) const override {
     sofar.write_type(SchemaType); // Type
     sofar.write_string(name);     // Name
   }
-  void write_to_message(PacketWriter &sofar) const override {
+  void write_message(PacketWriter &sofar) const override {
     sofar.write_number<NumberType>(value);
   }
   void read_from_message(PacketReader &reader) override {
@@ -163,11 +196,11 @@ public:
   }
 
   void fetch() override { value = fetcher(); }
-  void setValue(Number value) { this->value = value; }
+  void setValue(NumberType value) { this->value = value; }
 
   void pprint(std::stringstream &ss, size_t indent) const override {
     add_indents(ss, indent);
-    ss << name << to_string(SchemaType);
+    ss << name << ":\t" << to_string(SchemaType);
   }
   void pprint_data(std::stringstream &ss, size_t indent) const override {
     add_indents(ss, indent);
@@ -175,17 +208,22 @@ public:
   }
 
 private:
-  Number value = (Number)0;
+  NumberType value = (NumberType)0;
   FetchFunc fetcher;
 };
 
-using Float = NumericPart<float, Type::Float>;
-using Double = NumericPart<double, Type::Double>;
+using Float = Number<float, Type::Float>;
+using Double = Number<double, Type::Double>;
 
-using Uint8 = NumericPart<uint8_t, Type::Uint8>;
-using Uint16 = NumericPart<uint16_t, Type::Uint16>;
-using Uint32 = NumericPart<uint32_t, Type::Uint32>;
-using Uint64 = NumericPart<uint64_t, Type::Uint64>;
+using Uint8 = Number<uint8_t, Type::Uint8>;
+using Uint16 = Number<uint16_t, Type::Uint16>;
+using Uint32 = Number<uint32_t, Type::Uint32>;
+using Uint64 = Number<uint64_t, Type::Uint64>;
+
+using Int8 = Number<int8_t, Type::Int8>;
+using Int16 = Number<int16_t, Type::Int16>;
+using Int32 = Number<int32_t, Type::Int32>;
+using Int64 = Number<int64_t, Type::Int64>;
 
 } // namespace Schema
 Schema::PartPtr decode_schema(const Packet &packet);
