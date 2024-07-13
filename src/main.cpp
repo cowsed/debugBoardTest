@@ -58,46 +58,44 @@ N Times:
 vex::motor mot1{vex::PORT10};
 
 int main() {
+  mot1.spin(vex::fwd, 2.0, vex::voltageUnits::volt);
+
   vexDisplayPrintf(10, 10, true, "Hello");
   VDP::Schema::PartPtr schema{new VDP::Schema::Motor("Motor 1", mot1)};
 
-  vexDisplayPrintf(10, 10, true, "Made Schema");
-
   std::string schema_str = schema->pretty_print();
-
-  vexDisplayPrintf(10, 10, true, "PPRinted schema");
-
-  vexDisplayPrintf(10, 50, true, schema_str.c_str());
 
   printf("Schema In:\n%s", schema_str.c_str());
 
-  VDP::Packet pac{};
+  VDP::Schema::PacketWriter writer;
+  // VDP::Schema::PacketReader reader;
 
-  schema->write_to_schema(pac);
+  schema->write_schema(writer);
 
-  VDP::dump_packet(pac);
+  VDP::dump_packet(writer.get_packet());
 
-  VDP::Schema::PartPtr rev = VDP::decode_schema(std::move(pac));
+  VDP::Schema::PartPtr rev =
+      VDP::decode_schema(VDP::Packet{writer.get_packet()});
+
   std::string rev_str = schema->pretty_print();
 
   printf("Schema Out:\n%s", rev_str.c_str());
 
-  VDP::Packet msg;
-  mot1.spin(vex::fwd, 2.0, vex::voltageUnits::volt);
-  while (true) {
-    msg.clear();
-    schema->fetch();
-    schema->write_to_message(msg);
+  // while (true) {
+  //   schema->fetch();
+  //   schema->write_to_message(writer);
 
-    // VDP::dump_packet(msg);
-    VDP::Schema::PacketReader reader{msg};
-    schema->read_from_message(reader);
-    std::string data_str = schema->pretty_print_data();
-    printf("Data:\n%s", data_str.c_str());
-    // schema->
+  //   VDP::Packet msg = writer.get_packet();
 
-    vexDelay(50);
-  }
+  //   // VDP::dump_packet(msg);
+  //   VDP::Schema::PacketReader reader{msg};
+  //   schema->read_from_message(reader);
+  //   std::string data_str = schema->pretty_print_data();
+  //   printf("Data:\n%s", data_str.c_str());
+  //   // schema->
+
+  //   vexDelay(50);
+  // }
   // printf("Done");
   // FLUSH
 }
