@@ -85,8 +85,9 @@ std::string to_string(Type t) {
     return "record";
   case Type::String:
     return "string";
+
   case Type::Float:
-    return "double";
+    return "float";
   case Type::Double:
     return "double";
 

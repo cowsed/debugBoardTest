@@ -87,7 +87,7 @@ int main() {
     writer.write_message(schema);
 
     VDP::Packet msg = writer.get_packet();
-    // VDP::dump_packet(msg);
+    VDP::dump_packet(msg);
 
     VDP::Schema::PacketReader reader{msg};
     schema->read_from_message(reader);
@@ -97,9 +97,4 @@ int main() {
     printf("Data:\n%s", data_str.c_str());
     vexDelay(10);
   }
-  //   // schema->
-
-  // }
-  // printf("Done");
-  // FLUSH
 }

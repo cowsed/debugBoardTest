@@ -14,11 +14,11 @@ public:
 private:
   vex::motor &mot;
 
-  std::shared_ptr<Double> pos;
-  std::shared_ptr<Double> vel;
+  std::shared_ptr<Float> pos;
+  std::shared_ptr<Float> vel;
   std::shared_ptr<Uint8> temp;
-  std::shared_ptr<Double> voltage;
-  std::shared_ptr<Double> current;
+  std::shared_ptr<Float> voltage;
+  std::shared_ptr<Float> current;
 };
 } // namespace Schema
 } // namespace VDP
