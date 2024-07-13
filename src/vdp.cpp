@@ -23,6 +23,7 @@ namespace Schema {
 std::string Part::pretty_print() const {
   std::stringstream ss;
   this->pprint(ss, 0);
+
   return ss.str();
 }
 std::string Part::pretty_print_data() const {
@@ -121,9 +122,6 @@ PartPtr make_decoder(PacketReader &pac) {
   Type t = pac.get_type();
   std::string tname = to_string(t);
   std::string name = pac.get_string();
-  printf("Making decoder for '%s' of type %s\n", name.c_str(), tname.c_str());
-  fflush(stdout);
-  vexDelay(400);
 
   switch (t) {
   case Type::String:
@@ -176,9 +174,6 @@ Record::Record(std::string name, PacketReader &reader) : Part(name), fields() {
   // Name and type already read, only need to read number of fields before child
   // data shows up
   uint32_t size = reader.get_number<SizeT>();
-  printf("Found %lu fields\n", size);
-  fflush(stdout);
-  vexDelay(400);
   fields.reserve(size);
   for (size_t i = 0; i < size; i++) {
     fields.push_back(make_decoder(reader));
@@ -264,9 +259,6 @@ void String::read_from_message(PacketReader &reader) {
 } // namespace Schema
 
 Schema::PartPtr decode_schema(const Packet &packet) {
-  printf("Decode schema\n");
-  fflush(stdout);
-  vexDelay(400);
 
   Schema::PacketReader reader(packet);
   return make_decoder(reader);

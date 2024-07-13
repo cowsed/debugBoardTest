@@ -69,12 +69,7 @@ public:
                       std::is_integral<Number>::value,
                   "This function should only be used on numbers");
 
-    printf("Reading number size %d at position %d of %d\n", sizeof(Number),
-           read_head, pac.size());
-    fflush(stdout);
-    vexDelay(400);
-
-    if (read_head + sizeof(Number) >= pac.size()) {
+    if (read_head + sizeof(Number) > pac.size()) {
       printf("Reading a number[%d] at position %d would read past buffer of "
              "size %d\n",
              sizeof(Number), read_head, pac.size());
@@ -179,9 +174,6 @@ public:
       std::string name, FetchFunc fetcher = []() { return (NumberType)0; })
       : Part(name), fetcher(fetcher) {
     std::string s = to_string(SchemaType);
-    printf("Constructed Number %s\n", s.c_str());
-    fflush(stdout);
-    vexDelay(400);
   }
 
   void write_schema(PacketWriter &sofar) const override {
@@ -204,7 +196,13 @@ public:
   }
   void pprint_data(std::stringstream &ss, size_t indent) const override {
     add_indents(ss, indent);
-    ss << name << ":\t" << value;
+    ss << name << ":\t";
+    if (sizeof(NumberType) == 1) {
+      ss << (int)value; // Otherwise, stringstream interprets uint8 as char and
+                        // prints a char
+    } else {
+      ss << value;
+    }
   }
 
 private:

@@ -73,17 +73,9 @@ int main() {
 
   VDP::dump_packet(writer.get_packet());
 
-  printf("Decoding\n");
-  fflush(stdout);
-  vexDelay(400);
   VDP::Packet pac{writer.get_packet()};
-  printf("Got packet\n");
-  fflush(stdout);
-  vexDelay(400);
+
   VDP::Schema::PartPtr rev = VDP::decode_schema(pac);
-  printf("Decoded packet\n");
-  fflush(stdout);
-  vexDelay(400);
 
   std::string rev_str = schema->pretty_print();
 
@@ -92,20 +84,18 @@ int main() {
 
   while (true) {
     schema->fetch();
-    printf("Fetched:\n");
     writer.write_message(schema);
-    printf("writer size: %d", writer.size());
 
     VDP::Packet msg = writer.get_packet();
-    VDP::dump_packet(msg);
+    // VDP::dump_packet(msg);
 
     VDP::Schema::PacketReader reader{msg};
     schema->read_from_message(reader);
 
     std::string data_str = schema->pretty_print_data();
-    printf("Data:\n%s", data_str.c_str());
 
-    vexDelay(1000);
+    printf("Data:\n%s", data_str.c_str());
+    vexDelay(10);
   }
   //   // schema->
 
