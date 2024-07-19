@@ -4,7 +4,6 @@
 #include "vex.h"
 
 namespace VDP {
-namespace Schema {
 
 class Motor : public Record {
 public:
@@ -20,5 +19,4 @@ private:
   std::shared_ptr<Float> voltage;
   std::shared_ptr<Float> current;
 };
-} // namespace Schema
 } // namespace VDP

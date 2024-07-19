@@ -1,12 +1,18 @@
 #include "vdp_device.h"
+#include "v5_apiuser.h"
+#include "vdp.h"
+#include "vex_thread.h"
+#include <cstddef>
+#include <cstdint>
+#include <cstdio>
+#include <vector>
 
 namespace VDB {
-// static constexpr size_t device_buffer_size = 2000;
 
 Device::Device(int32_t port) : port(port), outbound_packets() {
   vexGenericSerialEnable(port, 0x0);
   vexGenericSerialBaudrate(port, baud_rate);
-  // vexGenericSerial
+
   hw_task = vex::task(Device::hardware_thread, (void *)this);
   decode_task = vex::task(Device::decoder_thread, (void *)this);
 }
@@ -46,6 +52,7 @@ int Device::decoder_thread(void *vself) {
     }
     CobsDecode(inbound, decoded);
     printf("pac size: %d -> %d\n", inbound.size(), decoded.size());
+    fflush(stdout);
 
     // give up control for a bit
     vex::this_thread::yield();
@@ -63,15 +70,15 @@ bool Device::write_packet() {
   }
   outbound_mutex.unlock();
   if (outbound_packet.size() > 0) {
-    int avail = vexGenericSerialWriteFree(port);
+    const int avail = vexGenericSerialWriteFree(port);
     if (avail < (int)outbound_packet.size()) {
       // avail can be -1 for undocumented reasons.
       // Signed comparison handles this correctly (as
       // correctly as I can think to).
       vexGenericSerialFlush(port);
     }
-    size_t wrote = vexGenericSerialTransmit(port, outbound_packet.data(),
-                                            outbound_packet.size());
+    const size_t wrote = vexGenericSerialTransmit(
+        port, outbound_packet.data(), (int32_t)outbound_packet.size());
     if (wrote < outbound_packet.size()) {
       printf("Unhandled state: Didn't write all that we wanted to, will "
              "probably get packet corruption\n");
@@ -97,9 +104,9 @@ int Device::hardware_thread(void *vself) {
     // Writing
     did_something |= self.write_packet();
     // Reading
-    int avail = vexGenericSerialReceiveAvail(self.port);
+    const int avail = vexGenericSerialReceiveAvail(self.port);
     if (avail > 0) {
-      int read = vexGenericSerialReceive(self.port, buf, buflen);
+      const int read = vexGenericSerialReceive(self.port, buf, buflen);
       for (int i = 0; i < read; i++) {
         self.handle_inbound_byte(buf[i]);
       }
@@ -177,7 +184,7 @@ void Device::CobsDecode(const WirePacket &in, VDP::Packet &out) {
   uint8_t code = 0xff;
   uint8_t left_in_block = 0;
   size_t write_head = 0;
-  for (uint8_t byte : in) {
+  for (const uint8_t byte : in) {
     if (left_in_block) {
       out[write_head] = byte;
       write_head++;

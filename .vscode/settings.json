@@ -38,6 +38,24 @@
         "typeinfo": "cpp",
         "memory": "cpp",
         "map": "cpp",
-        "string": "cpp"
-    }
+        "string": "cpp",
+        "deque": "cpp",
+        "cstddef": "cpp"
+    },
+    "C_Cpp.codeAnalysis.clangTidy.checks.disabled": [
+        "clang-diagnostic-format",
+        "misc-no-recursion",
+        "misc-include-cleaner",
+        "misc-non-private-member-variables-in-classes"
+    ],
+    "C_Cpp.codeAnalysis.clangTidy.checks.enabled": [
+        "bugprone-*",
+        "performance-*",
+        "clang-analyzer-*",
+        "clang-analyzer-core.*",
+        "clang-analyzer-valist.*",
+        "clang-analyzer-nullablity.*",
+        "clang-analyzer-cplusplus.*",
+        "misc-*"
+    ]
 }

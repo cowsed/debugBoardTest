@@ -10,7 +10,6 @@
 #include "vdp_builtins.h"
 #include "vdp_device.h"
 #include "vex.h"
-#include <vector>
 using namespace vex;
 
 // A global instance of vex::brain used for printing to the V5 brain screen
@@ -87,35 +86,41 @@ vex::motor mot1{vex::PORT10};
 //   }
 // }
 
+static constexpr VDP::ChannelID motor_chan_id = 1;
+
 VDB::Device dev1(PORT1);
 VDB::Device dev2(PORT6);
-
 int main() {
+
   mot1.spin(vex::fwd, 2.0, vex::voltageUnits::volt);
-  VDP::Schema::PartPtr schema{new VDP::Schema::Motor("Motor 1", mot1)};
+  const VDP::Channel motor_channel = {
+      motor_chan_id,
+      (VDP::PartPtr) new VDP::Motor("Motor 1", mot1),
+  };
 
-  VDP::Schema::PacketWriter writer;
-  schema->write_schema(writer);
+  VDP::PacketWriter writer;
+  writer.write_channel_broadcast(motor_channel);
 
-  VDP::Packet pac{writer.get_packet()};
-  VDP::Schema::PartPtr rev = VDP::decode_schema(pac);
+  const VDP::Packet pac{writer.get_packet()};
 
+  // VDP::PartPtr schema = rev.data;
   vex::timer tmr;
   uint32_t num_written = 0;
   while (tmr.time(vex::seconds) < 5) {
-    schema->fetch();
-    writer.write_message(schema);
+    motor_channel.data->fetch();
+    writer.write_message(motor_channel.data);
 
-    VDP::Packet msg = writer.get_packet();
-    // VDP::dump_packet(msg);
+    const VDP::Packet msg = writer.get_packet();
+    VDP::dump_packet(msg);
 
-    VDP::Schema::PacketReader reader{msg};
-    schema->read_from_message(reader);
+    // VDP::PacketReader reader{msg};
 
-    std::string data_str = schema->pretty_print_data();
+    // // schema->read_from_message(reader);
+
+    // const std::string data_str = motor_channel.data->pretty_print_data();
 
     dev1.send_packet(writer.get_packet());
-    // dev2.write_packet(writer.get_packet());
+    // // dev2.write_packet(writer.get_packet());
     num_written++;
     // printf("Data:\n%s", data_str.c_str());
     vexDelay(1);

@@ -1,7 +1,13 @@
 #include "vdp.h"
 #include "vex.h"
+#include <cstdint>
 #include <cstring>
+#include <functional>
+#include <sstream>
 #include <stdio.h>
+#include <string>
+#include <utility>
+#include <vector>
 
 #define TODO()                                                                 \
   printf("UNIMPLEMENTED %s at %s:%d\n", __func__, __FILE__, __LINE__);
@@ -18,7 +24,6 @@ void dump_packet(const Packet &pac) {
   }
   printf("\n");
 }
-namespace Schema {
 
 std::string Part::pretty_print() const {
   std::stringstream ss;
@@ -32,16 +37,16 @@ std::string Part::pretty_print_data() const {
   return ss.str();
 }
 
-PacketReader::PacketReader(Packet pac) : pac(pac), read_head(0) {}
+PacketReader::PacketReader(Packet pac) : pac(std::move(pac)), read_head(0) {}
 
 uint8_t PacketReader::get_byte() {
-  uint8_t b = pac[read_head];
+  const uint8_t b = pac[read_head];
   read_head++;
   return b;
 }
 
 Type PacketReader::get_type() {
-  uint8_t val = get_byte();
+  const uint8_t val = get_byte();
   return (Type)val;
 }
 
@@ -49,11 +54,11 @@ std::string PacketReader::get_string() {
   std::string s;
 
   while (1) {
-    uint8_t c = get_byte();
+    const uint8_t c = get_byte();
     if (c == 0) {
       break;
     }
-    s.push_back(c);
+    s.push_back((char)c);
   }
   return s;
 }
@@ -69,11 +74,12 @@ size_t PacketWriter::size() { return sofar.size(); }
 
 const Packet &PacketWriter::get_packet() const { return sofar; }
 
-void PacketWriter::write_schema(PartPtr part) {
+void PacketWriter::write_channel_broadcast(const Channel &chan) {
   clear();
-  part->write_schema(*this);
+  write_number<ChannelID>(chan.id);
+  chan.data->write_schema(*this);
 }
-void PacketWriter::write_message(PartPtr part) {
+void PacketWriter::write_message(const PartPtr &part) {
   clear();
   part->write_message(*this);
 }
@@ -118,9 +124,8 @@ void add_indents(std::stringstream &ss, size_t indent) {
 }
 
 PartPtr make_decoder(PacketReader &pac) {
-  Type t = pac.get_type();
-  std::string tname = to_string(t);
-  std::string name = pac.get_string();
+  const Type t = pac.get_type();
+  const std::string name = pac.get_string();
 
   switch (t) {
   case Type::String:
@@ -154,25 +159,26 @@ PartPtr make_decoder(PacketReader &pac) {
   return nullptr;
 }
 
-Part::Part(std::string name) : name(name) {}
+Part::Part(std::string name) : name(std::move(name)) {}
 
-Record::Record(std::string name, std::vector<Part *> parts)
-    : Part(name), fields() {
+Record::Record(std::string name, const std::vector<Part *> &parts)
+    : Part(std::move(name)), fields() {
   fields.reserve(parts.size());
   for (Part *f : parts) {
     fields.emplace_back(f);
   }
 }
-Record::Record(std::string name) : Part(name), fields({}) {}
-void Record::setFields(std::vector<PartPtr> fs) { fields = fs; }
+Record::Record(std::string name) : Part(std::move(name)), fields({}) {}
+void Record::setFields(std::vector<PartPtr> fs) { fields = std::move(fs); }
 
 Record::Record(std::string name, std::vector<PartPtr> parts)
-    : Part(name), fields(parts) {}
+    : Part(std::move(name)), fields(std::move(parts)) {}
 
-Record::Record(std::string name, PacketReader &reader) : Part(name), fields() {
+Record::Record(std::string name, PacketReader &reader)
+    : Part(std::move(name)), fields() {
   // Name and type already read, only need to read number of fields before child
   // data shows up
-  uint32_t size = reader.get_number<SizeT>();
+  const uint32_t size = reader.get_number<SizeT>();
   fields.reserve(size);
   for (size_t i = 0; i < size; i++) {
     fields.push_back(make_decoder(reader));
@@ -192,13 +198,13 @@ void Record::write_schema(PacketWriter &sofar) const {
   }
 }
 void Record::write_message(PacketWriter &sofar) const {
-  for (auto f : fields) {
+  for (auto &f : fields) {
     f->write_message(sofar);
   }
 }
 
 void Record::read_from_message(PacketReader &reader) {
-  for (auto f : fields) {
+  for (auto &f : fields) {
     f->read_from_message(reader);
   }
 }
@@ -236,11 +242,11 @@ void Record::pprint_data(std::stringstream &ss, size_t indent) const {
 }
 
 String::String(std::string name, std::function<std::string()> fetcher)
-    : Part(name), fetcher(fetcher) {}
+    : Part(std::move(name)), fetcher(std::move(fetcher)) {}
 
 void String::fetch() { value = fetcher(); }
 
-void String::setValue(std::string new_value) { value = new_value; }
+void String::setValue(std::string new_value) { value = std::move(new_value); }
 
 void String::write_schema(PacketWriter &sofar) const {
   sofar.write_type(Type::String); // Type
@@ -254,12 +260,13 @@ void String::write_message(PacketWriter &sofar) const {
 void String::read_from_message(PacketReader &reader) {
   value = reader.get_string();
 }
-} // namespace Schema
 
-Schema::PartPtr decode_schema(const Packet &packet) {
+Channel decode_broadcast(const Packet &packet) {
 
-  Schema::PacketReader reader(packet);
-  return make_decoder(reader);
+  PacketReader reader(packet);
+  const ChannelID id = reader.get_number<ChannelID>();
+  const PartPtr schema = make_decoder(reader);
+  return {id, schema};
 }
 
 } // namespace VDP

@@ -9,10 +9,18 @@
 #include <vector>
 
 namespace VDP {
+class Part;
+using PartPtr = std::shared_ptr<Part>;
+
+using ChannelID = uint16_t;
+struct Channel {
+  ChannelID id;
+  PartPtr data;
+};
 using Packet = std::vector<uint8_t>;
 void dump_packet(const Packet &pac);
+Channel decode_broadcast(const Packet &packet);
 
-namespace Schema {
 enum class Type : uint8_t {
   Record,
   String,
@@ -39,23 +47,29 @@ class PacketReader;
 class PacketWriter;
 
 class Part {
+  friend class PacketReader;
+  friend class PacketWriter;
+  friend class Record;
+
 public:
   Part(std::string name);
+  virtual ~Part() {}
   std::string pretty_print() const;
   std::string pretty_print_data() const;
 
-  virtual void write_schema(PacketWriter &sofar) const = 0;
-  virtual void write_message(PacketWriter &sofar) const = 0;
+  virtual void fetch() = 0;
   virtual void read_from_message(PacketReader &reader) = 0;
 
-  virtual void fetch() = 0;
+protected:
+  // These are needed to decode correctly but you shouldn't call them directly
+  virtual void write_schema(PacketWriter &sofar) const = 0;
+  virtual void write_message(PacketWriter &sofar) const = 0;
+
   virtual void pprint(std::stringstream &ss, size_t indent) const = 0;
   virtual void pprint_data(std::stringstream &ss, size_t indent) const = 0;
 
-protected:
   std::string name;
 };
-using PartPtr = std::shared_ptr<Part>;
 
 class PacketReader {
 public:
@@ -95,15 +109,15 @@ public:
   void write_type(Type t);
   void write_string(const std::string &str);
 
-  void write_schema(PartPtr part);
-  void write_message(PartPtr part);
+  void write_channel_broadcast(const Channel &chan);
+  void write_message(const PartPtr &part);
 
   const Packet &get_packet() const;
 
   template <typename Number> void write_number(Number num) {
     std::array<uint8_t, sizeof(Number)> bytes;
     std::memcpy(&bytes, &num, sizeof(Number));
-    for (uint8_t b : bytes) {
+    for (const uint8_t b : bytes) {
       write_byte(b);
     }
   }
@@ -113,43 +127,52 @@ private:
 };
 
 class Record : public Part {
+  friend PacketReader;
+  friend PacketWriter;
+
 public:
   using SizeT = uint32_t;
   Record(std::string name);
-  Record(std::string name, std::vector<Part *> fields);
+  Record(std::string name, const std::vector<Part *> &fields);
   Record(std::string name, std::vector<PartPtr> fields);
   Record(std::string name, PacketReader &reader);
+  void setFields(std::vector<PartPtr> fields);
+
+  void fetch() override;
+  void read_from_message(PacketReader &reader) override;
+
+protected:
   // Encode the schema itself for transmission on the wire
   void write_schema(PacketWriter &sofar) const override;
   // Encode the data currently held according to schema for transmission on the
   // wire
   void write_message(PacketWriter &sofar) const override;
 
-  void read_from_message(PacketReader &reader) override;
-
-  void fetch() override;
-  void setFields(std::vector<PartPtr> fields);
-
+private:
   void pprint(std::stringstream &ss, size_t indent) const override;
   void pprint_data(std::stringstream &ss, size_t indent) const override;
 
-private:
   std::vector<PartPtr> fields;
 };
 
 class String : public Part {
+  friend PacketReader;
+  friend PacketWriter;
+
 public:
   using FetchFunc = std::function<std::string()>;
-  String(
-      std::string name, FetchFunc fetcher = []() { return "no value"; });
-  void write_schema(PacketWriter &sofar) const override;
-  void write_message(PacketWriter &sofar) const override;
-  void read_from_message(PacketReader &reader) override;
+  String(std::string name, FetchFunc fetcher = []() { return "no value"; });
   void fetch() override;
   void setValue(std::string new_value);
 
+  void read_from_message(PacketReader &reader) override;
+
   void pprint(std::stringstream &ss, size_t indent) const override;
   void pprint_data(std::stringstream &ss, size_t indent) const override;
+
+protected:
+  void write_schema(PacketWriter &sofar) const override;
+  void write_message(PacketWriter &sofar) const override;
 
 private:
   FetchFunc fetcher;
@@ -159,6 +182,9 @@ private:
 // Template to reduce boiler plate for Schema wrappers for simple types
 // Basically fixed size, numeric types  such as uin8_t, uint32, float, double
 template <typename NumT, Type schemaType> class Number : public Part {
+  friend PacketReader;
+  friend PacketWriter;
+
 public:
   using NumberType = NumT;
   static constexpr Type SchemaType = schemaType;
@@ -172,20 +198,7 @@ public:
   using FetchFunc = std::function<NumberType()>;
   Number(
       std::string name, FetchFunc fetcher = []() { return (NumberType)0; })
-      : Part(name), fetcher(fetcher) {
-    std::string s = to_string(SchemaType);
-  }
-
-  void write_schema(PacketWriter &sofar) const override {
-    sofar.write_type(SchemaType); // Type
-    sofar.write_string(name);     // Name
-  }
-  void write_message(PacketWriter &sofar) const override {
-    sofar.write_number<NumberType>(value);
-  }
-  void read_from_message(PacketReader &reader) override {
-    value = reader.get_number<NumberType>();
-  }
+      : Part(name), fetcher(fetcher) {}
 
   void fetch() override { value = fetcher(); }
   void setValue(NumberType value) { this->value = value; }
@@ -203,6 +216,18 @@ public:
     } else {
       ss << value;
     }
+  }
+  void read_from_message(PacketReader &reader) override {
+    value = reader.get_number<NumberType>();
+  }
+
+protected:
+  void write_schema(PacketWriter &sofar) const override {
+    sofar.write_type(SchemaType); // Type
+    sofar.write_string(name);     // Name
+  }
+  void write_message(PacketWriter &sofar) const override {
+    sofar.write_number<NumberType>(value);
   }
 
 private:
@@ -222,8 +247,5 @@ using Int8 = Number<int8_t, Type::Int8>;
 using Int16 = Number<int16_t, Type::Int16>;
 using Int32 = Number<int32_t, Type::Int32>;
 using Int64 = Number<int64_t, Type::Int64>;
-
-} // namespace Schema
-Schema::PartPtr decode_schema(const Packet &packet);
 
 } // namespace VDP

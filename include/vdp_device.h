@@ -4,6 +4,7 @@
 #include "vex.h"
 #include <deque>
 #include <unordered_map>
+
 namespace VDB {
 class Device {
 public:
@@ -11,10 +12,8 @@ public:
   static constexpr size_t MAX_IN_QUEUE_SIZE = 50;
   static constexpr size_t baud_rate = 115200;
 
-  using Channels = std::vector<VDP::Schema::PartPtr>;
   using WirePacket = std::vector<uint8_t>; // 0x00 delimeted, cobs encoded
   Device(int32_t port);
-  // void SetSchema(Channels chans);
 
   void send_packet(const VDP::Packet &pac);
 
