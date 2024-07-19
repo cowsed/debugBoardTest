@@ -55,7 +55,6 @@ std::string PacketReader::get_string() {
     }
     s.push_back(c);
   }
-  printf("read string: %s\n", s.c_str());
   return s;
 }
 void PacketWriter::write_byte(uint8_t b) { sofar.push_back(b); }
@@ -119,7 +118,6 @@ void add_indents(std::stringstream &ss, size_t indent) {
 }
 
 PartPtr make_decoder(PacketReader &pac) {
-  printf("make_decoder entered\n");
   Type t = pac.get_type();
   std::string tname = to_string(t);
   std::string name = pac.get_string();
@@ -194,7 +192,6 @@ void Record::write_schema(PacketWriter &sofar) const {
   }
 }
 void Record::write_message(PacketWriter &sofar) const {
-  printf("Writer size: %d\n", sofar.size());
   for (auto f : fields) {
     f->write_message(sofar);
   }
