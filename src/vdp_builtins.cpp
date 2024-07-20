@@ -1,5 +1,6 @@
-#include "vdp_builtins.h"
-#include "vdp.h"
+#include "vdb/builtins.h"
+#include "vdb/protocol.h"
+
 #include "vex_motor.h"
 #include "vex_units.h"
 #include <cstdint>

@@ -1,4 +1,4 @@
-#include "vdp.h"
+#include "vdb/protocol.h"
 
 #include <cstdint>
 #include <cstring>
@@ -12,7 +12,7 @@
 #include "vex.h"
 #include "vex_vexlink.h"
 
-#include "vdp_device.h"
+#include "vdb/device.h"
 
 #define TODO()                                                                 \
   printf("UNIMPLEMENTED %s at %s:%d\n", __PRETTY_FUNCTION__, __FILE__,         \

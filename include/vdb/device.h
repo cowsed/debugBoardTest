@@ -1,6 +1,6 @@
 #pragma once
 
-#include "vdp.h"
+#include "vdb/protocol.h"
 #include "vex.h"
 #include <deque>
 #include <unordered_map>

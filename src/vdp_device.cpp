@@ -1,7 +1,6 @@
-#include "vdp_device.h"
-#include "v5_apiuser.h"
-#include "vdp.h"
-#include "vex_thread.h"
+#include "vdb/device.h"
+#include "vdb/protocol.h"
+
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>

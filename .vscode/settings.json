@@ -40,7 +40,8 @@
         "map": "cpp",
         "string": "cpp",
         "deque": "cpp",
-        "cstddef": "cpp"
+        "cstddef": "cpp",
+        "optional": "cpp"
     },
     "C_Cpp.codeAnalysis.clangTidy.checks.disabled": [
         "clang-diagnostic-format",
