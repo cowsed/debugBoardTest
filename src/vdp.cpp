@@ -1,5 +1,5 @@
 #include "vdp.h"
-#include "vex.h"
+
 #include <cstdint>
 #include <cstring>
 #include <functional>
@@ -9,8 +9,14 @@
 #include <utility>
 #include <vector>
 
+#include "vex.h"
+#include "vex_vexlink.h"
+
+#include "vdp_device.h"
+
 #define TODO()                                                                 \
-  printf("UNIMPLEMENTED %s at %s:%d\n", __func__, __FILE__, __LINE__);
+  printf("UNIMPLEMENTED %s at %s:%d\n", __PRETTY_FUNCTION__, __FILE__,         \
+         __LINE__);
 
 namespace VDP {
 void dump_packet(const Packet &pac) {
@@ -62,6 +68,7 @@ std::string PacketReader::get_string() {
   }
   return s;
 }
+
 void PacketWriter::write_byte(uint8_t b) { sofar.push_back(b); }
 
 void PacketWriter::write_type(Type t) { write_byte((uint8_t)t); }
@@ -76,12 +83,31 @@ const Packet &PacketWriter::get_packet() const { return sofar; }
 
 void PacketWriter::write_channel_broadcast(const Channel &chan) {
   clear();
+  const uint8_t header = make_header_byte(
+      PacketHeader{PacketType::Broadcast, PacketFunction::Send});
+  // Header
+  write_number<uint8_t>(header);
   write_number<ChannelID>(chan.id);
+
+  // Data
   chan.data->write_schema(*this);
+
+  // Checksum
+  auto crc = VDB::crc32_buf(0, sofar.data(), sofar.size());
+  write_number<uint32_t>(crc);
 }
-void PacketWriter::write_message(const PartPtr &part) {
+void PacketWriter::write_message(const Channel &chan) {
   clear();
-  part->write_message(*this);
+  const uint8_t header =
+      make_header_byte(PacketHeader{PacketType::Data, PacketFunction::Send});
+  // Header
+  write_number<uint8_t>(header);
+  write_number<ChannelID>(chan.id);
+  // Data
+  chan.data->write_message(*this);
+  // Checksum
+  auto crc = VDB::crc32_buf(0, sofar.data(), sofar.size());
+  write_number<uint32_t>(crc);
 }
 
 std::string to_string(Type t) {
@@ -260,10 +286,29 @@ void String::write_message(PacketWriter &sofar) const {
 void String::read_from_message(PacketReader &reader) {
   value = reader.get_string();
 }
+static constexpr auto PACKET_TYPE_BIT_LOCATION = 7;
+static constexpr auto PACKET_FUNCTION_BIT_LOCATION = 6;
+
+uint8_t make_header_byte(PacketHeader head) {
+
+  uint8_t b = 0;
+  b |= ((uint8_t)head.type) << PACKET_TYPE_BIT_LOCATION;
+  b |= ((uint8_t)head.func) << PACKET_FUNCTION_BIT_LOCATION;
+  return b;
+}
+PacketHeader decode_header_byte(uint8_t hb) {
+  const PacketType pt = (PacketType)((hb >> PACKET_TYPE_BIT_LOCATION) & 1);
+  const PacketFunction func =
+      (PacketFunction)((hb >> PACKET_FUNCTION_BIT_LOCATION) & 1);
+
+  return {pt, func};
+}
 
 Channel decode_broadcast(const Packet &packet) {
 
   PacketReader reader(packet);
+  // header byte, had to be read to know were a braodcast
+  (void)reader.get_byte();
   const ChannelID id = reader.get_number<ChannelID>();
   const PartPtr schema = make_decoder(reader);
   return {id, schema};

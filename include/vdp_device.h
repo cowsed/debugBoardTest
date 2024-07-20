@@ -6,29 +6,40 @@
 #include <unordered_map>
 
 namespace VDB {
+uint32_t crc32_one(uint32_t accum, uint8_t b);
+uint32_t crc32_buf(uint32_t accum, const uint8_t *b, uint32_t length);
+
 class Device {
 public:
+  using CallbackFn = std::function<void(VDP::Channel)>;
+  using WirePacket = std::vector<uint8_t>; // 0x00 delimeted, cobs encoded
+
   static constexpr size_t MAX_OUT_QUEUE_SIZE = 50;
   static constexpr size_t MAX_IN_QUEUE_SIZE = 50;
   static constexpr size_t baud_rate = 115200;
 
-  using WirePacket = std::vector<uint8_t>; // 0x00 delimeted, cobs encoded
   Device(int32_t port);
 
   void send_packet(const VDP::Packet &pac);
+  void install_broadcast_callback(CallbackFn on_broadcast);
+  void install_data_callback(CallbackFn on_data);
 
+private:
   /// Thread function for the direct reading and writing to the serial port
   static int hardware_thread(void *self);
   static int decoder_thread(void *self);
 
-private:
   static void CobsEncode(const VDP::Packet &in, WirePacket &out);
   static void CobsDecode(const WirePacket &in, VDP::Packet &out);
   void handle_inbound_byte(uint8_t b);
   bool write_packet();
 
-  int32_t port;
+  CallbackFn on_broadcast;
+  CallbackFn on_data;
 
+  std::vector<VDP::Channel> remote_channels;
+
+  int32_t port;
   /// @brief Packets that have been encoded and are waiting for their turn to be
   /// sent out on the wire
   std::deque<WirePacket> outbound_packets;

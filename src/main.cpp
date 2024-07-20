@@ -57,40 +57,17 @@ N Times:
 
 vex::motor mot1{vex::PORT10};
 
-// #define MIKE_BUFLEN 32
-// #define SERIAL_PORT PORT1
-
-// int main() {
-//   static uint8_t buf[MIKE_BUFLEN] = {0};
-//   Brain.Screen.printAt(10, 50, "Hello V5");
-//   vexGenericSerialEnable(PORT1, 0x0);
-//   vexGenericSerialBaudrate(PORT1, 115200);
-
-//   vexGenericSerialEnable(PORT6, 0x0);
-//   vexGenericSerialBaudrate(PORT6, 115200);
-
-//   while (1) {
-//     // dev1.write_packet({'b'});
-//     uint8_t sendbuf[] = {'a', 'b', 'c'};
-//     vexGenericSerialTransmit(PORT1, sendbuf, 3);
-//     int i = vexGenericSerialWriteChar(PORT1, 'a');
-//     printf("printed : %d\n", i);
-//     vexDelay(10);
-//     i = vexGenericSerialReceive(PORT6, buf, MIKE_BUFLEN);
-//     printf("Recieved: %lu at %d\n", i, vexSystemTimeGet());
-//     if (i > 0) {
-//       printf("Message: %.*s\n", i, buf);
-//     }
-//     // Allow other tasks to run
-//     this_thread::sleep_for(500);
-//   }
-// }
-
 static constexpr VDP::ChannelID motor_chan_id = 1;
 
 VDB::Device dev1(PORT1);
 VDB::Device dev2(PORT6);
 int main() {
+  dev2.install_broadcast_callback([](VDP::Channel chan) {
+    printf("dev2 broadcast received for channel %d!\n", chan.id);
+  });
+  dev2.install_data_callback([](VDP::Channel chan) {
+    printf("dev2 data received for channel %d!\n", chan.id);
+  });
 
   mot1.spin(vex::fwd, 2.0, vex::voltageUnits::volt);
   const VDP::Channel motor_channel = {
@@ -100,24 +77,26 @@ int main() {
 
   VDP::PacketWriter writer;
   writer.write_channel_broadcast(motor_channel);
+  dev1.send_packet(writer.get_packet());
 
   const VDP::Packet pac{writer.get_packet()};
 
   // VDP::PartPtr schema = rev.data;
   vex::timer tmr;
   uint32_t num_written = 0;
+  // return 0;
   while (tmr.time(vex::seconds) < 5) {
     motor_channel.data->fetch();
-    writer.write_message(motor_channel.data);
+    writer.write_message(motor_channel);
 
     const VDP::Packet msg = writer.get_packet();
-    VDP::dump_packet(msg);
+    // VDP::dump_packet(msg);
 
     // VDP::PacketReader reader{msg};
 
     // // schema->read_from_message(reader);
 
-    // const std::string data_str = motor_channel.data->pretty_print_data();
+    const std::string data_str = motor_channel.data->pretty_print_data();
 
     dev1.send_packet(writer.get_packet());
     // // dev2.write_packet(writer.get_packet());

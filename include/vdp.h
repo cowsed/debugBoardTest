@@ -12,7 +12,7 @@ namespace VDP {
 class Part;
 using PartPtr = std::shared_ptr<Part>;
 
-using ChannelID = uint16_t;
+using ChannelID = uint8_t;
 struct Channel {
   ChannelID id;
   PartPtr data;
@@ -21,23 +21,45 @@ using Packet = std::vector<uint8_t>;
 void dump_packet(const Packet &pac);
 Channel decode_broadcast(const Packet &packet);
 
+enum class PacketValidity : uint8_t {
+  Ok,
+  BadChecksum,
+  TooSmall,
+};
+
+enum class PacketType : uint8_t {
+  Broadcast = 0,
+  Data = 1,
+};
+enum class PacketFunction : uint8_t {
+  Send = 0,
+  Acknowledge = 1,
+};
+struct PacketHeader {
+  PacketType type;
+  PacketFunction func;
+};
+
+uint8_t make_header_byte(PacketHeader head);
+PacketHeader decode_header_byte(uint8_t hb);
+
 enum class Type : uint8_t {
-  Record,
-  String,
+  Record = 0,
+  String = 1,
   // Enum
 
-  Double,
-  Float,
+  Double = 3,
+  Float = 4,
 
-  Uint8,
-  Uint16,
-  Uint32,
-  Uint64,
+  Uint8 = 5,
+  Uint16 = 6,
+  Uint32 = 7,
+  Uint64 = 8,
 
-  Int8,
-  Int16,
-  Int32,
-  Int64,
+  Int8 = 9,
+  Int16 = 10,
+  Int32 = 11,
+  Int64 = 12,
 
 };
 std::string to_string(Type t);
@@ -77,6 +99,7 @@ public:
   uint8_t get_byte();
   Type get_type();
   std::string get_string();
+  uint32_t calc_crc32();
 
   template <typename Number> Number get_number() {
     static_assert(std::is_floating_point<Number>::value ||
@@ -110,7 +133,7 @@ public:
   void write_string(const std::string &str);
 
   void write_channel_broadcast(const Channel &chan);
-  void write_message(const PartPtr &part);
+  void write_message(const Channel &part);
 
   const Packet &get_packet() const;
 
