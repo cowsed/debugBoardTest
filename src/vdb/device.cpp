@@ -8,7 +8,8 @@
 
 namespace VDB {
 
-Device::Device(int32_t port) : port(port), outbound_packets() {
+Device::Device(int32_t port, VDP::Registry &reg)
+    : reg(reg), port(port), outbound_packets() {
   vexGenericSerialEnable(port, 0x0);
   vexGenericSerialBaudrate(port, baud_rate);
 

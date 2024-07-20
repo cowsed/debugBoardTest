@@ -45,6 +45,8 @@ std::string Part::pretty_print_data() const {
 }
 
 PacketReader::PacketReader(Packet pac) : pac(std::move(pac)), read_head(0) {}
+PacketReader::PacketReader(Packet pac, size_t offset)
+    : pac(std::move(pac)), read_head(offset) {}
 
 uint8_t PacketReader::get_byte() {
   const uint8_t b = pac[read_head];

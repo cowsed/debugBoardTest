@@ -9,6 +9,8 @@
 #include <vector>
 
 namespace VDP {
+constexpr size_t MAX_CHANNELS = 256;
+
 // THESE NEED TO BE IMPLEMENTEED SOMEWHERE
 uint32_t crc32_one(uint32_t accum, uint8_t b);
 uint32_t crc32_buf(uint32_t accum, const uint8_t *b, uint32_t length);
@@ -20,6 +22,7 @@ using ChannelID = uint8_t;
 struct Channel {
   ChannelID id;
   PartPtr data;
+  bool is_valid() { return data != nullptr; }
 };
 
 using Packet = std::vector<uint8_t>;
@@ -105,6 +108,7 @@ protected:
 class PacketReader {
 public:
   PacketReader(Packet pac);
+  PacketReader(Packet pac, size_t start);
   uint8_t get_byte();
   Type get_type();
   std::string get_string();

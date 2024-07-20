@@ -59,9 +59,20 @@ vex::motor mot1{vex::PORT10};
 
 static constexpr VDP::ChannelID motor_chan_id = 1;
 
-VDB::Device dev1(PORT1);
-VDB::Device dev2(PORT6);
+VDP::Registry reg1;
+VDP::Registry reg2;
+
+VDB::Device dev1(PORT1, reg1);
+VDB::Device dev2(PORT6, reg2);
 int main() {
+  reg2.install_broadcast_callback(
+      [](const VDP::Channel &) { printf("brawirjsaiufhdsfiouahsdofaidsj\n"); });
+
+  reg2.install_data_callback([](const VDP::Channel &chan) {
+    auto id = chan.id;
+    auto str = chan.data->pretty_print_data();
+    printf("Chan %d\n%s", id, str.c_str());
+  });
 
   mot1.spin(vex::fwd, 2.0, vex::voltageUnits::volt);
   const VDP::Channel motor_channel = {
@@ -88,7 +99,7 @@ int main() {
 
     // // schema->read_from_message(reader);
 
-    const std::string data_str = motor_channel.data->pretty_print_data();
+    // const std::string data_str = motor_channel.data->pretty_print_data();
 
     dev1.send_packet(writer.get_packet());
     // // dev2.write_packet(writer.get_packet());

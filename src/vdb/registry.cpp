@@ -1,6 +1,17 @@
 #include "vdb/registry.h"
 
 namespace VDP {
+Registry::Registry() {
+  my_channels.resize(256);
+  remote_channels.resize(256);
+  for (auto &c : my_channels) {
+    c = Channel{0, nullptr};
+  }
+  for (auto &c : remote_channels) {
+    c = Channel{0, nullptr};
+  }
+}
+
 void Registry::install_broadcast_callback(CallbackFn on_broadcast) {
   this->on_broadcast = std::move(on_broadcast);
 }
@@ -25,6 +36,13 @@ VDP::PacketValidity validate_packet(const VDP::Packet &packet) {
   return VDP::PacketValidity::Ok;
 }
 
+PartPtr Registry::get_remote_schema(ChannelID id) {
+  if (id >= remote_channels.size()) {
+    return nullptr;
+  }
+  return remote_channels[id].data;
+}
+
 void Registry::take_packet(const Packet &pac) {
   const VDP::PacketValidity status = validate_packet(pac);
 
@@ -42,11 +60,19 @@ void Registry::take_packet(const Packet &pac) {
   const VDP::PacketHeader header = VDP::decode_header_byte(pac[0]);
   if (header.func == VDP::PacketFunction::Send) {
     if (header.type == VDP::PacketType::Broadcast) {
-      VDP::Channel chan = VDP::decode_broadcast(pac);
+      const VDP::Channel chan = VDP::decode_broadcast(pac);
+      remote_channels[chan.id] = chan;
       on_broadcast(chan);
     } else {
-      ChannelID id = pac[1];
-      printf("UNIMPLEMENTED DATA for chan %d\n", id);
+      const ChannelID id = pac[1];
+      const PartPtr part = get_remote_schema(id);
+      if (part == nullptr) {
+        printf("No channel information for id: %d\n", id);
+        return;
+      }
+      PacketReader reader{pac, 2};
+      part->read_from_message(reader);
+      on_data(Channel{id, part});
     }
   } else {
     printf("UNIMPLEMENTED: ACKs\n");

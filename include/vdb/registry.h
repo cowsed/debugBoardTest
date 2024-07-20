@@ -5,7 +5,8 @@ static const Channel ControlChannel{0, nullptr};
 
 class Registry {
 public:
-  using CallbackFn = std::function<void(VDP::Channel)>;
+  using CallbackFn = std::function<void(const VDP::Channel &)>;
+  Registry();
 
   ChannelID new_channel_id() {
     next_channel_id++;
@@ -16,23 +17,21 @@ public:
   /// @param pac the packet to take.
   void take_packet(const Packet &pac);
 
+  PartPtr get_remote_schema(ChannelID id);
+
   void install_broadcast_callback(CallbackFn on_broadcast);
   void install_data_callback(CallbackFn on_data);
 
 private:
   std::vector<Channel> my_channels = {ControlChannel};
-  std::vector<Channel> remote_channles = {ControlChannel};
+  std::vector<Channel> remote_channels = {ControlChannel};
   ChannelID next_channel_id = 0;
 
-  CallbackFn on_broadcast = [](VDP::Channel c) {
+  CallbackFn on_broadcast = [](VDP::Channel) {
     printf("No Broadcast Callback installed\n");
-    fflush(stdout);
-    vexDelay(500);
   };
-  CallbackFn on_data = [](VDP::Channel c) {
+  CallbackFn on_data = [](VDP::Channel) {
     printf("No Data Callback installed\n");
-    fflush(stdout);
-    vexDelay(500);
   };
 };
 } // namespace VDP

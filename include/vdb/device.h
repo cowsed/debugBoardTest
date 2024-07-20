@@ -16,13 +16,13 @@ public:
   static constexpr size_t MAX_IN_QUEUE_SIZE = 50;
   static constexpr size_t baud_rate = 115200;
 
-  Device(int32_t port);
+  Device(int32_t port, VDP::Registry &reg);
 
   void send_packet(const VDP::Packet &pac);
   VDP::Registry &get_registry() { return reg; }
 
 private:
-  VDP::Registry reg;
+  VDP::Registry &reg;
 
   /// Thread function for the direct reading and writing to the serial port
   static int hardware_thread(void *self);
