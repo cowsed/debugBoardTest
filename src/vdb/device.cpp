@@ -16,13 +16,6 @@ Device::Device(int32_t port) : port(port), outbound_packets() {
   decode_task = vex::task(Device::decoder_thread, (void *)this);
 }
 
-void Device::install_broadcast_callback(CallbackFn on_broadcast) {
-  this->on_broadcast = std::move(on_broadcast);
-}
-void Device::install_data_callback(CallbackFn on_data) {
-  this->on_data = std::move(on_data);
-}
-
 void Device::handle_inbound_byte(uint8_t b) {
   inbound_mutex.lock();
 
@@ -40,22 +33,7 @@ void Device::handle_inbound_byte(uint8_t b) {
   }
   inbound_mutex.unlock();
 }
-VDP::PacketValidity validate_packet(const VDP::Packet &packet) {
-  if (packet.size() < 6) {
-    // packet header byte + channel byte + checksum = 6 bytes
-    return VDP::PacketValidity::TooSmall;
-  }
-  auto checksum = crc32_buf(0, packet.data(), packet.size() - 4);
-  auto size = packet.size();
-  const uint32_t written_checksum = (packet[size - 1] << 24) |
-                                    (packet[size - 2] << 16) |
-                                    (packet[size - 3] << 8) | packet[size - 4];
-  // printf("%04lx vs %04lx\n", checksum, written_checksum);
-  if (checksum != written_checksum) {
-    return VDP::PacketValidity::BadChecksum;
-  }
-  return VDP::PacketValidity::Ok;
-}
+
 int Device::decoder_thread(void *vself) {
   Device &self = *(Device *)vself;
   VDP::Packet decoded = {};
@@ -78,36 +56,7 @@ int Device::decoder_thread(void *vself) {
     }
 
     CobsDecode(inbound, decoded);
-
-    const VDP::PacketValidity status = validate_packet(decoded);
-    if (status == VDP::PacketValidity::Ok) {
-      // all set
-    } else if (status == VDP::PacketValidity::BadChecksum) {
-      printf("Bad packet checksum. Skipping\n");
-      continue;
-    } else if (status == VDP::PacketValidity::TooSmall) {
-      printf("Packet too small to be valid. Skipping\n");
-      continue;
-    } else {
-      printf("Unknown validity of packet (THIS SHOULD NOT HAPPEN). Skipping\n");
-      continue;
-    }
-
-    const VDP::PacketHeader header = VDP::decode_header_byte(decoded[0]);
-    if (header.func == VDP::PacketFunction::Send) {
-      if (header.type == VDP::PacketType::Broadcast) {
-        const VDP::Channel chan = VDP::decode_broadcast(decoded);
-        auto s = chan.data->pretty_print();
-        printf("Broadcast:\n%s\n", s.c_str());
-      } else {
-        printf("UNIMPLEMENTED DATA\n");
-      }
-    } else {
-      printf("UNIMPLEMENTED: ACKs\n");
-    }
-    continue;
-
-    fflush(stdout);
+    self.reg.take_packet(decoded);
 
     // give up control for a bit
     vex::this_thread::yield();
@@ -127,7 +76,7 @@ bool Device::write_packet() {
   if (outbound_packet.size() > 0) {
     const int avail = vexGenericSerialWriteFree(port);
     if (avail < (int)outbound_packet.size()) {
-      // avail can be -1 for undocumented reasons.
+      // avail can be -1 for unknown reasons.
       // Signed comparison handles this correctly (as
       // correctly as I can think to).
       vexGenericSerialFlush(port);
@@ -179,7 +128,6 @@ int Device::hardware_thread(void *vself) {
 void Device::send_packet(const VDP::Packet &pac) {
   std::vector<uint8_t> encoded;
   CobsEncode(pac, encoded);
-  // printf("Writ %d to %d\n", pac.size(), encoded.size());
 
   outbound_mutex.lock();
   outbound_packets.push_back(encoded);
@@ -276,11 +224,14 @@ public:
   }
 };
 
+} // namespace VDB
+
+namespace VDP {
+
 uint32_t crc32_one(uint32_t accum, uint8_t b) {
-  return dummy_vexlink::crc32_one(accum, b);
+  return VDB::dummy_vexlink::crc32_one(accum, b);
 }
 uint32_t crc32_buf(uint32_t accum, const uint8_t *b, uint32_t length) {
-  return dummy_vexlink::crc32_buf(accum, b, length);
+  return VDB::dummy_vexlink::crc32_buf(accum, b, length);
 }
-
-} // namespace VDB
+} // namespace VDP

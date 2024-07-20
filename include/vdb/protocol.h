@@ -9,6 +9,10 @@
 #include <vector>
 
 namespace VDP {
+// THESE NEED TO BE IMPLEMENTEED SOMEWHERE
+uint32_t crc32_one(uint32_t accum, uint8_t b);
+uint32_t crc32_buf(uint32_t accum, const uint8_t *b, uint32_t length);
+
 class Part;
 using PartPtr = std::shared_ptr<Part>;
 
@@ -17,7 +21,9 @@ struct Channel {
   ChannelID id;
   PartPtr data;
 };
+
 using Packet = std::vector<uint8_t>;
+
 void dump_packet(const Packet &pac);
 Channel decode_broadcast(const Packet &packet);
 
@@ -62,6 +68,7 @@ enum class Type : uint8_t {
   Int64 = 12,
 
 };
+
 std::string to_string(Type t);
 void add_indents(std::stringstream &ss, size_t indent);
 

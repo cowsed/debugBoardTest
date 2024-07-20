@@ -63,13 +63,6 @@ VDB::Device dev1(PORT1);
 VDB::Device dev2(PORT6);
 int main() {
 
-  dev2.install_broadcast_callback([](VDP::Channel chan) {
-    printf("dev2 broadcast received for channel %d!\n", chan.id);
-  });
-  dev2.install_data_callback([](VDP::Channel chan) {
-    printf("dev2 data received for channel %d!\n", chan.id);
-  });
-
   mot1.spin(vex::fwd, 2.0, vex::voltageUnits::volt);
   const VDP::Channel motor_channel = {
       motor_chan_id,
@@ -79,10 +72,8 @@ int main() {
   VDP::PacketWriter writer;
   writer.write_channel_broadcast(motor_channel);
   dev1.send_packet(writer.get_packet());
-
   const VDP::Packet pac{writer.get_packet()};
 
-  // VDP::PartPtr schema = rev.data;
   vex::timer tmr;
   uint32_t num_written = 0;
   // return 0;

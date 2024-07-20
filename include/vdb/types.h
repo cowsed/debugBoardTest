@@ -56,7 +56,7 @@ private:
 };
 
 // Template to reduce boiler plate for Schema wrappers for simple types
-// Basically fixed size, numeric types  such as uin8_t, uint32, float, double
+// Fixed size, numeric types  such as uin8_t, uint32, float, double
 template <typename NumT, Type schemaType> class Number : public Part {
   friend PacketReader;
   friend PacketWriter;
