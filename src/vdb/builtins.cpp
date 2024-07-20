@@ -1,5 +1,7 @@
 #include "vdb/builtins.h"
+
 #include "vdb/protocol.h"
+#include "vdb/types.h"
 
 #include "vex_motor.h"
 #include "vex_units.h"

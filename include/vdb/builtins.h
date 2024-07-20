@@ -1,8 +1,9 @@
 #pragma once
 
-#include "vdb/protocol.h"
-#include "vex.h"
+#include "vdb/types.h"
+#include <memory>
 
+#include "vex.h"
 namespace VDP {
 
 class Motor : public Record {
