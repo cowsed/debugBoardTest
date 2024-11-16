@@ -24,12 +24,12 @@ VDP::PacketValidity validate_packet(const VDP::Packet &packet) {
     // packet header byte + channel byte + checksum = 6 bytes
     return VDP::PacketValidity::TooSmall;
   }
-  auto checksum = crc32_buf(0, packet.data(), packet.size() - 4);
+  auto checksum = crc32_buf(0xFFFFFFFF, packet.data(), packet.size() - 4);
   auto size = packet.size();
   const uint32_t written_checksum = (packet[size - 1] << 24) |
                                     (packet[size - 2] << 16) |
                                     (packet[size - 3] << 8) | packet[size - 4];
-  // printf("%04lx vs %04lx\n", checksum, written_checksum);
+  printf("%04lx vs %04lx\n", checksum, written_checksum);
   if (checksum != written_checksum) {
     return VDP::PacketValidity::BadChecksum;
   }

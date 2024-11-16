@@ -14,7 +14,7 @@ Device::Device(int32_t port, VDP::Registry &reg)
   vexGenericSerialBaudrate(port, baud_rate);
 
   hw_task = vex::task(Device::hardware_thread, (void *)this);
-  decode_task = vex::task(Device::decoder_thread, (void *)this);
+  // decode_task = vex::task(Device::decoder_thread, (void *)this);
 }
 
 void Device::handle_inbound_byte(uint8_t b) {
@@ -87,6 +87,8 @@ bool Device::write_packet() {
     if (wrote < outbound_packet.size()) {
       printf("Unhandled state: Didn't write all that we wanted to, will "
              "probably get packet corruption\n");
+    } else {
+      printf("Wrote %d bytes\n", wrote);
     }
     did_write = true;
   }
@@ -98,7 +100,7 @@ int Device::hardware_thread(void *vself) {
 
   static constexpr size_t buflen = 32;
   static uint8_t buf[buflen] = {0};
-
+  printf("HERERE\n");
   while (1) {
     // Lame replacement for blocking IO. We can't just wait and tell the
     // scheduler to go work on something else while we wait for packets so
@@ -109,14 +111,14 @@ int Device::hardware_thread(void *vself) {
     // Writing
     did_something |= self.write_packet();
     // Reading
-    const int avail = vexGenericSerialReceiveAvail(self.port);
-    if (avail > 0) {
-      const int read = vexGenericSerialReceive(self.port, buf, buflen);
-      for (int i = 0; i < read; i++) {
-        self.handle_inbound_byte(buf[i]);
-      }
-      did_something = true;
-    }
+    // const int avail = vexGenericSerialReceiveAvail(self.port);
+    // if (avail > 0) {
+    // const int read = vexGenericSerialReceive(self.port, buf, buflen);
+    // for (int i = 0; i < read; i++) {
+    // self.handle_inbound_byte(buf[i]);
+    // }
+    // did_something = true;
+    // }
 
     if (!did_something) {
       // dont consume all the resources if theres nothing to do

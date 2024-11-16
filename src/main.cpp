@@ -55,25 +55,17 @@ N Times:
   fflush(stdout);                                                              \
   vexDelay(1000);
 
-vex::motor mot1{vex::PORT10};
+vex::motor mot1{vex::PORT11};
 
 static constexpr VDP::ChannelID motor_chan_id = 1;
 
 VDP::Registry reg1;
-VDP::Registry reg2;
+// VDP::Registry reg2;
 
 VDB::Device dev1(PORT1, reg1);
-VDB::Device dev2(PORT6, reg2);
+// VDB::Device dev2(PORT1, reg2);
+
 int main() {
-  reg2.install_broadcast_callback(
-      [](const VDP::Channel &) { printf("brawirjsaiufhdsfiouahsdofaidsj\n"); });
-
-  reg2.install_data_callback([](const VDP::Channel &chan) {
-    auto id = chan.id;
-    auto str = chan.data->pretty_print_data();
-    printf("Chan %d\n%s", id, str.c_str());
-  });
-
   mot1.spin(vex::fwd, 2.0, vex::voltageUnits::volt);
   const VDP::Channel motor_channel = {
       motor_chan_id,
@@ -87,8 +79,8 @@ int main() {
 
   vex::timer tmr;
   uint32_t num_written = 0;
-  // return 0;
-  while (tmr.time(vex::seconds) < 5) {
+
+  while (tmr.time(vex::seconds) < 500) {
     motor_channel.data->fetch();
     writer.write_message(motor_channel);
 
@@ -99,13 +91,29 @@ int main() {
 
     // // schema->read_from_message(reader);
 
-    // const std::string data_str = motor_channel.data->pretty_print_data();
+    std::string str = motor_channel.data->pretty_print_data();
+    Brain.Screen.setCursor(1, 1);
+    Brain.Screen.clearScreen();
+    int line_start = 0;
+    for (size_t i = 0; i < str.size(); i++) {
+      if (str[i] == '\n') {
+        std::string line = str.substr(line_start, i - line_start);
+        Brain.Screen.print("%s", line.c_str());
+        Brain.Screen.newLine();
+        line_start = i + 1;
+      } else if (str[i] == '\r') {
+        str[i] = ' ';
+      } else if (str[i] == '\t') {
+        str[i] = ' ';
+      }
+    }
+    Brain.Screen.render(false, true);
 
     dev1.send_packet(writer.get_packet());
-    // // dev2.write_packet(writer.get_packet());
+    // dev2.write_packet(writer.get_packet());
     num_written++;
     // printf("Data:\n%s", data_str.c_str());
-    vexDelay(1);
+    vexDelay(1000);
   }
   printf("Wrote %lu packets in 5 seconds\n", num_written);
   fflush(stdout);
