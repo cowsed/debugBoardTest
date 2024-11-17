@@ -120,9 +120,10 @@ public:
                   "This function should only be used on numbers");
 
     if (read_head + sizeof(Number) > pac.size()) {
-      printf("Reading a number[%d] at position %d would read past buffer of "
+      printf("%s:%d: Reading a number[%d] at position %d would read past "
+             "buffer of "
              "size %d\n",
-             sizeof(Number), read_head, pac.size());
+             __FILE__, __LINE__, sizeof(Number), read_head, pac.size());
       return 0;
     }
     Number value = 0;
@@ -160,6 +161,16 @@ public:
 
 private:
   Packet sofar;
+};
+
+class AbstractDevice {
+public:
+  virtual void send_packet(const VDP::Packet &packet) = 0;
+
+  // @param callback a function that will be called when a new packet is
+  // available
+  virtual void register_receive_callback(
+      std::function<void(const VDP::Packet &packet)> callback) = 0;
 };
 
 } // namespace VDP

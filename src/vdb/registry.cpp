@@ -1,7 +1,9 @@
 #include "vdb/registry.h"
 
 namespace VDP {
-Registry::Registry() {
+Registry::Registry(AbstractDevice *device) : device(device) {
+  device->register_receive_callback([&](const Packet &p) { take_packet(p); });
+
   my_channels.resize(256);
   remote_channels.resize(256);
   for (auto &c : my_channels) {
@@ -29,7 +31,6 @@ VDP::PacketValidity validate_packet(const VDP::Packet &packet) {
   const uint32_t written_checksum = (packet[size - 1] << 24) |
                                     (packet[size - 2] << 16) |
                                     (packet[size - 3] << 8) | packet[size - 4];
-  printf("%04lx vs %04lx\n", checksum, written_checksum);
   if (checksum != written_checksum) {
     return VDP::PacketValidity::BadChecksum;
   }

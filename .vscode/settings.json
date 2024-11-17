@@ -41,7 +41,9 @@
         "string": "cpp",
         "deque": "cpp",
         "cstddef": "cpp",
-        "optional": "cpp"
+        "optional": "cpp",
+        "mutex": "cpp",
+        "system_error": "cpp"
     },
     "C_Cpp.codeAnalysis.clangTidy.checks.disabled": [
         "clang-diagnostic-format",

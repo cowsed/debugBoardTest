@@ -197,4 +197,5 @@ Channel decode_broadcast(const Packet &packet) {
   return {id, schema};
 }
 Part::Part(std::string name) : name(std::move(name)) {}
+
 } // namespace VDP
