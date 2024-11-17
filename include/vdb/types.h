@@ -15,7 +15,7 @@ public:
   void setFields(std::vector<PartPtr> fields);
 
   void fetch() override;
-  void read_from_message(PacketReader &reader) override;
+  void read_data_from_message(PacketReader &reader) override;
 
 protected:
   // Encode the schema itself for transmission on the wire
@@ -41,7 +41,7 @@ public:
   void fetch() override;
   void setValue(std::string new_value);
 
-  void read_from_message(PacketReader &reader) override;
+  void read_data_from_message(PacketReader &reader) override;
 
   void pprint(std::stringstream &ss, size_t indent) const override;
   void pprint_data(std::stringstream &ss, size_t indent) const override;
@@ -93,7 +93,7 @@ public:
       ss << value;
     }
   }
-  void read_from_message(PacketReader &reader) override {
+  void read_data_from_message(PacketReader &reader) override {
     value = reader.get_number<NumberType>();
   }
 

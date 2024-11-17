@@ -7,7 +7,7 @@ namespace VDB {
 class Device : public VDP::AbstractDevice {
 public:
   Device(COBSSerialDevice &underlying);
-  void send_packet(const VDP::Packet &packet) override;
+  bool send_packet(const VDP::Packet &packet) override;
   void register_receive_callback(
       std::function<void(const VDP::Packet &packet)> callback);
 

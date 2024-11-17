@@ -12,11 +12,11 @@ public:
 
   static constexpr std::size_t MAX_OUT_QUEUE_SIZE = 50;
   static constexpr std::size_t MAX_IN_QUEUE_SIZE = 50;
-  static constexpr std::size_t baud_rate = 115200;
+  static constexpr std::size_t baud_rate = 921600;
 
   COBSSerialDevice(int32_t port);
 
-  void send_packet(const Packet &pac);
+  bool send_packet(const Packet &pac);
   void register_recieve_callback(std::function<void(const Packet &)> cb);
 
 private:

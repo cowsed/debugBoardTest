@@ -43,7 +43,8 @@
         "cstddef": "cpp",
         "optional": "cpp",
         "mutex": "cpp",
-        "system_error": "cpp"
+        "system_error": "cpp",
+        "thread": "cpp"
     },
     "C_Cpp.codeAnalysis.clangTidy.checks.disabled": [
         "clang-diagnostic-format",

@@ -11,8 +11,8 @@
 #include "vdb/protocol.h"
 #include "vdb/registry.h"
 #include "vdb/tests.h"
-
 #include "vex.h"
+#include <thread>
 using namespace vex;
 
 // A global instance of vex::brain used for printing to the V5 brain screen
@@ -72,14 +72,40 @@ int main() {
   auto u2 = COBSSerialDevice(PORT6);
   VDB::Device dev1{u1};
   VDB::Device dev2{u2};
-  VDP::Registry reg1{&dev1};
-  VDP::Registry reg2{&dev2};
+  VDP::Registry reg1{&dev1, VDP::Registry::Side::Controller};
+  VDP::Registry reg2{&dev2, VDP::Registry::Side::Listener};
 
   vexDelay(1);
 
+  vex::motor mot1{vex::PORT11};
   printf("opening channel\n");
-  VDP::Channel chan1 = reg1.open_channel((VDP::PartPtr) new VDP::Float(
-      "my float", []() { return (float)vexSystemTimeGet(); }));
+  VDP::Channel chan1 =
+      reg1.open_channel((VDP::PartPtr) new VDP::Motor("my motor", mot1));
+
+  vexDelay(1000);
+  int count = 0;
+  int sent = 0;
+  reg2.install_data_callback([&](const VDP::Channel &pac) {
+    // printf("Good packet\n");
+    count++;
+  });
+  mot1.spin(vex::fwd, 1.0, vex::volt);
+  vex::timer tmr;
+  while (tmr.value() < 5.0) {
+    chan1.data->fetch();
+    bool really = reg1.send_data(chan1);
+    if (really) {
+      sent++;
+    }
+    // this_thread::yield();
+    // vexDelay(10);
+  }
+  int c2 = count;
+  vexDelay(1000);
+  printf(
+      "Got %d decodes with 5 seconds of rapid sending. sent %d device got %d\n",
+      c2, sent, u2.received);
+  printf("%d failed checksum %d too small \n", reg1.num_bad, reg1.num_small);
 
   vexDelay(10000);
   return 0;

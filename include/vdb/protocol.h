@@ -17,15 +17,15 @@ uint32_t crc32_buf(uint32_t accum, const uint8_t *b, uint32_t length);
 
 class Part;
 using PartPtr = std::shared_ptr<Part>;
+using Packet = std::vector<uint8_t>;
 
 using ChannelID = uint8_t;
 struct Channel {
   ChannelID id;
   PartPtr data;
-  bool is_valid() { return data != nullptr; }
+  Packet packet_scratch_space;
+  // std::vector
 };
-
-using Packet = std::vector<uint8_t>;
 
 void dump_packet(const Packet &pac);
 Channel decode_broadcast(const Packet &packet);
@@ -92,7 +92,7 @@ public:
   std::string pretty_print_data() const;
 
   virtual void fetch() = 0;
-  virtual void read_from_message(PacketReader &reader) = 0;
+  virtual void read_data_from_message(PacketReader &reader) = 0;
 
 protected:
   // These are needed to decode correctly but you shouldn't call them directly
@@ -139,6 +139,8 @@ private:
 
 class PacketWriter {
 public:
+  PacketWriter();
+  PacketWriter(Packet scratch_space);
   void clear();
   size_t size();
   void write_byte(uint8_t b);
@@ -146,6 +148,7 @@ public:
   void write_type(Type t);
   void write_string(const std::string &str);
 
+  void write_channel_acknowledge(const Channel &chan);
   void write_channel_broadcast(const Channel &chan);
   void write_message(const Channel &part);
 
@@ -165,7 +168,7 @@ private:
 
 class AbstractDevice {
 public:
-  virtual void send_packet(const VDP::Packet &packet) = 0;
+  virtual bool send_packet(const VDP::Packet &packet) = 0;
 
   // @param callback a function that will be called when a new packet is
   // available

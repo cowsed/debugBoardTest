@@ -9,8 +9,8 @@
 namespace VDB {
 Device::Device(COBSSerialDevice &underlying) : underlying(underlying) {}
 
-void Device::send_packet(const VDP::Packet &packet) {
-  underlying.send_packet(packet);
+bool Device::send_packet(const VDP::Packet &packet) {
+  return underlying.send_packet(packet);
 }
 void Device::register_receive_callback(
     std::function<void(const VDP::Packet &packet)> callback) {

@@ -6,12 +6,13 @@ COBSSerialDevice::COBSSerialDevice(int32_t port)
   vexGenericSerialEnable(port, 0x0);
   vexGenericSerialBaudrate(port, baud_rate);
 
-  serial_task = vex::task(COBSSerialDevice::serial_thread, (void *)this);
-  decode_task = vex::task(COBSSerialDevice::decode_thread, (void *)this);
+  serial_task = vex::task(COBSSerialDevice::serial_thread, (void *)this,
+                          vex::thread::threadPriorityHigh);
+  decode_task = vex::task(COBSSerialDevice::decode_thread, (void *)this,
+                          vex::thread::threadPriorityHigh);
 }
 
 void COBSSerialDevice::handle_inbound_byte(uint8_t b) {
-  inbound_mutex.lock();
 
   if (b == 0x00 && inbound_buffer.size() > 0) {
     if (inbound_packets.size() < MAX_IN_QUEUE_SIZE) {
@@ -26,7 +27,6 @@ void COBSSerialDevice::handle_inbound_byte(uint8_t b) {
   } else if (b != 0x00) {
     inbound_buffer.push_back(b);
   }
-  inbound_mutex.unlock();
 }
 
 int COBSSerialDevice::decode_thread(void *vself) {
@@ -47,7 +47,10 @@ int COBSSerialDevice::decode_thread(void *vself) {
 
     if (inbound.size() == 0) {
       // no packet read, wait a bit then see if we have anything to do
-      vexDelay(1);
+      // printf("waiting inbound\n");
+      // vexDelay(1);
+      vex::this_thread::yield();
+
       continue;
     }
 
@@ -79,6 +82,7 @@ bool COBSSerialDevice::write_packet_if_avail() {
     return did_write;
   }
   const int avail = vexGenericSerialWriteFree(port);
+
   if (avail < (int)outbound_packet.size()) {
     // avail can be -1 for unknown reasons.
     // Signed comparison handles this correctly (as
@@ -99,7 +103,7 @@ bool COBSSerialDevice::write_packet_if_avail() {
 int COBSSerialDevice::serial_thread(void *vself) {
   COBSSerialDevice &self = *(COBSSerialDevice *)vself;
 
-  static constexpr size_t buflen = 32;
+  static constexpr size_t buflen = 4096;
   static uint8_t buf[buflen] = {0};
 
   while (1) {
@@ -118,27 +122,42 @@ int COBSSerialDevice::serial_thread(void *vself) {
     const int avail = vexGenericSerialReceiveAvail(self.port);
     if (avail > 0) {
       const int read = vexGenericSerialReceive(self.port, buf, buflen);
+
+      self.inbound_mutex.lock();
       for (int i = 0; i < read; i++) {
         self.handle_inbound_byte(buf[i]);
       }
+      self.inbound_mutex.unlock();
+
       did_something = true;
     }
 
     if (!did_something) {
       // dont consume all the resources if theres nothing to do
-      vexDelay(1);
+      // printf("delaiing outboun\n");
+      // vexDelay(1);
+      vex::this_thread::yield();
     }
   }
   return 0;
 }
 
-void COBSSerialDevice::send_packet(const Packet &pac) {
+bool COBSSerialDevice::send_packet(const Packet &pac) {
+  outbound_mutex.lock();
+  size_t size = outbound_packets.size();
+  outbound_mutex.unlock();
+  if (size >= MAX_OUT_QUEUE_SIZE) {
+    // printf("Too many packets in out queue. dropping\n");
+    return false;
+  }
+
   std::vector<uint8_t> encoded;
   cobs_encode(pac, encoded);
 
   outbound_mutex.lock();
-  outbound_packets.push_back(encoded);
+  outbound_packets.push_front(encoded);
   outbound_mutex.unlock();
+  return true;
 }
 
 void COBSSerialDevice::cobs_encode(const Packet &in, WirePacket &out) {

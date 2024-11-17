@@ -71,7 +71,8 @@ std::string PacketReader::get_string() {
   }
   return s;
 }
-
+PacketWriter::PacketWriter() : sofar() {}
+PacketWriter::PacketWriter(VDP::Packet scratch) : sofar(scratch) {}
 void PacketWriter::write_byte(uint8_t b) { sofar.push_back(b); }
 
 void PacketWriter::write_type(Type t) { write_byte((uint8_t)t); }
@@ -84,6 +85,20 @@ size_t PacketWriter::size() { return sofar.size(); }
 
 const Packet &PacketWriter::get_packet() const { return sofar; }
 
+void PacketWriter::write_channel_acknowledge(const Channel &chan) {
+  clear();
+
+  const uint8_t header = make_header_byte(
+      PacketHeader{PacketType::Broadcast, PacketFunction::Acknowledge});
+
+  // Header
+  write_number<uint8_t>(header);
+  write_number<ChannelID>(chan.id);
+
+  // Checksum
+  auto crc = VDP::crc32_buf(0xFFFFFFFF, sofar.data(), sofar.size());
+  write_number<uint32_t>(crc);
+}
 void PacketWriter::write_channel_broadcast(const Channel &chan) {
   clear();
   const uint8_t header = make_header_byte(
@@ -92,7 +107,7 @@ void PacketWriter::write_channel_broadcast(const Channel &chan) {
   write_number<uint8_t>(header);
   write_number<ChannelID>(chan.id);
 
-  // Data
+  // Schema Data
   chan.data->write_schema(*this);
 
   // Checksum

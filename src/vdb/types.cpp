@@ -43,9 +43,9 @@ void Record::write_message(PacketWriter &sofar) const {
   }
 }
 
-void Record::read_from_message(PacketReader &reader) {
+void Record::read_data_from_message(PacketReader &reader) {
   for (auto &f : fields) {
-    f->read_from_message(reader);
+    f->read_data_from_message(reader);
   }
 }
 
@@ -97,7 +97,7 @@ void String::write_message(PacketWriter &sofar) const {
   sofar.write_string(value);
 }
 
-void String::read_from_message(PacketReader &reader) {
+void String::read_data_from_message(PacketReader &reader) {
   value = reader.get_string();
 }
 static constexpr auto PACKET_TYPE_BIT_LOCATION = 7;

@@ -6,7 +6,7 @@ namespace VDP {
 
 class SilentDevice : public AbstractDevice {
 public:
-  void send_packet(const VDP::Packet &) override {};
+  bool send_packet(const VDP::Packet &) override { return true; };
   void register_receive_callback(
       std::function<void(const VDP::Packet &)>) override{};
 };
@@ -14,11 +14,10 @@ namespace RegistryTest {
 
 bool test_broadcast() {
   VDP::SilentDevice dev;
-  VDP::Registry reg_out{&dev};
-  VDP::Registry reg_in{&dev};
+  VDP::Registry reg_out{&dev, VDP::Registry::Side::Controller};
+  VDP::Registry reg_in{&dev, VDP::Registry::Side::Listener};
 
   vex::motor mot1{vex::PORT21};
-  mot1.spin(vex::fwd, 2.0, vex::voltageUnits::volt);
   const VDP::Channel motor_channel =
       reg_out.open_channel((VDP::PartPtr) new VDP::Motor("Motor 1", mot1));
 
@@ -45,9 +44,6 @@ bool test_broadcast() {
 }
 } // namespace RegistryTest
 bool test_all() {
-  printf("Testin\n");
-  vexDelay(100);
-  fflush(stdout);
   using Test = std::pair<const char *, bool (*)()>;
   std::array<Test, 1> tests = {
       Test{"Test Broadcast", RegistryTest::test_broadcast},
@@ -64,16 +60,3 @@ bool test_all() {
 }
 
 } // namespace VDP
-
-bool test_enc_dec(const VDP::Channel &chan) {
-  VDP::PacketWriter writ;
-  writ.write_channel_broadcast(chan);
-  VDP::Packet packet = writ.get_packet();
-  bool ok = true;
-
-  ok &= (packet[0] == 0);
-  ok &= (packet[1] == chan.id);
-  VDP::dump_packet(packet);
-
-  return ok;
-}

@@ -1,7 +1,8 @@
 #include "vdb/registry.h"
 
 namespace VDP {
-Registry::Registry(AbstractDevice *device) : device(device) {
+Registry::Registry(AbstractDevice *device, Side reg_type)
+    : reg_type(reg_type), device(device) {
   device->register_receive_callback([&](const Packet &p) { take_packet(p); });
 
   my_channels.resize(256);
@@ -43,15 +44,16 @@ PartPtr Registry::get_remote_schema(ChannelID id) {
   }
   return remote_channels[id].data;
 }
-
 void Registry::take_packet(const Packet &pac) {
   const VDP::PacketValidity status = validate_packet(pac);
 
   if (status == VDP::PacketValidity::BadChecksum) {
-    printf("Bad packet checksum. Skipping\n");
+    // printf("Bad packet checksum. Skipping\n");
+    num_bad++;
     return;
   } else if (status == VDP::PacketValidity::TooSmall) {
-    printf("Packet too small to be valid. Skipping\n");
+    num_small++;
+    // printf("Packet too small to be valid. Skipping\n");
     return;
   } else if (status != VDP::PacketValidity::Ok) {
     printf("Unknown validity of packet (THIS SHOULD NOT HAPPEN). Skipping\n");
@@ -63,21 +65,81 @@ void Registry::take_packet(const Packet &pac) {
     if (header.type == VDP::PacketType::Broadcast) {
       const VDP::Channel chan = VDP::decode_broadcast(pac);
       remote_channels[chan.id] = chan;
+      printf("VDB-%s: Got broadcast of channel %d\n",
+             (reg_type == Side::Controller ? "Controller" : "Listener"),
+             int(chan.id));
       on_broadcast(chan);
-    } else {
+
+      PacketWriter writer;
+      writer.write_channel_acknowledge(chan);
+      device->send_packet(writer.get_packet());
+
+    } else if (header.type == VDP::PacketType::Data) {
       const ChannelID id = pac[1];
       const PartPtr part = get_remote_schema(id);
       if (part == nullptr) {
-        printf("No channel information for id: %d\n", id);
+        printf("VDB-%s: No channel information for id: %d\n",
+               (reg_type == Side::Controller ? "Controller" : "Listener"), id);
         return;
       }
       PacketReader reader{pac, 2};
-      part->read_from_message(reader);
+      part->read_data_from_message(reader);
       on_data(Channel{id, part});
     }
   } else {
-    printf("UNIMPLEMENTED: ACKs\n");
+    PacketReader reader(pac);
+    // header byte, had to be read to know were a braodcast
+    (void)reader.get_byte();
+    const ChannelID id = reader.get_number<ChannelID>();
+    if (id != highest_acked_channel + 1) {
+      printf("ACK out of order?????");
+      return;
+    }
+    needs_ack = false;
+    highest_acked_channel++;
   }
+}
+
+Channel Registry::open_channel(PartPtr for_data) {
+  ChannelID id = new_channel_id();
+  Channel chan = Channel{id, for_data};
+
+  if (needs_ack && waiting_on_ack_timer.time(vex::timeUnits::msec) < ack_ms) {
+    printf("Still waiting on ack");
+    vexDelay(ack_ms - waiting_on_ack_timer.time(vex::timeUnits::msec));
+  }
+
+  if (reg_type == Side::Controller) {
+    PacketWriter writer;
+    writer.write_channel_broadcast(chan);
+    VDP::Packet pac = writer.get_packet();
+
+    device->send_packet(pac);
+    needs_ack = true;
+    waiting_on_ack_timer.reset();
+  }
+  return chan;
+}
+
+bool Registry::send_data(const Channel &data) {
+  if (data.id > next_channel_id) {
+    printf("VDB-%s: Channel with ID %d doesn't exist yet\n",
+           (reg_type == Side::Controller ? "Controller" : "Listener"),
+           (int)data.id);
+    return false;
+  }
+  if (data.id > highest_acked_channel) {
+    printf("VDB-%s: Channel %d has not yet been negotiated. Dropping packet\n",
+           (reg_type == Side::Controller ? "Controller" : "Listener"),
+           (int)data.id);
+    return false;
+  }
+
+  PacketWriter writ;
+
+  writ.write_message(data);
+  VDP::Packet pac = writ.get_packet();
+  return device->send_packet(pac);
 }
 
 } // namespace VDP
