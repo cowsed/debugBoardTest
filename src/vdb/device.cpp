@@ -3,11 +3,12 @@
 #include <cstdio>
 #include <vector>
 
-#include "cobs_device.h"
-#include "vdb/device.h"
-#include "vdb/protocol.h"
+#include "cobs_device.hpp"
+#include "vdb/device.hpp"
+#include "vdb/protocol.hpp"
 namespace VDB {
-Device::Device(COBSSerialDevice &underlying) : underlying(underlying) {}
+Device::Device(COBSSerialDevice &underlying_device)
+    : underlying(underlying_device) {}
 
 bool Device::send_packet(const VDP::Packet &packet) {
   return underlying.send_packet(packet);

@@ -85,11 +85,11 @@ CLEAN = $(RMDIR) $(BUILD) 2> /dev/null || :
 endif
 
 # toolchain include and lib locations
-TOOL_INC  = -I"$(VEX_SDK_PATH)/$(PLATFORM)/clang/$(HEADERS)/include" -I"$(VEX_SDK_PATH)/$(PLATFORM)/gcc/include/c++/4.9.3"  -I"$(VEX_SDK_PATH)/$(PLATFORM)/gcc/include/c++/4.9.3/arm-none-eabi/armv7-ar/thumb" -I"$(VEX_SDK_PATH)/$(PLATFORM)/gcc/include"
+TOOL_INC  = -isystem"$(VEX_SDK_PATH)/$(PLATFORM)/clang/$(HEADERS)/include" -isystem"$(VEX_SDK_PATH)/$(PLATFORM)/gcc/include/c++/4.9.3"  -isystem"$(VEX_SDK_PATH)/$(PLATFORM)/gcc/include/c++/4.9.3/arm-none-eabi/armv7-ar/thumb" -isystem"$(VEX_SDK_PATH)/$(PLATFORM)/gcc/include"
 TOOL_LIB  = -L"$(VEX_SDK_PATH)/$(PLATFORM)/gcc/libs"
 
 # code quality flags
-QUALITY_FLAGS = -Wall -Wextra -Werror=return-type -Werror=switch -pedantic -Wreorder -Wformat
+QUALITY_FLAGS = -Wall -Wextra -Werror=return-type -Werror=switch
 
 # compiler flags
 CFLAGS_CL = -target thumbv7-none-eabi -fshort-enums -Wno-unknown-attributes -U__INT32_TYPE__ -U__UINT32_TYPE__ -D__INT32_TYPE__=long -D__UINT32_TYPE__='unsigned long' 
@@ -109,5 +109,5 @@ LIBS =  --start-group -lv5rt -lstdc++ -lc -lm -lgcc --end-group
 
 # include file paths
 INC += $(addprefix -I, ${INC_F})
-INC += -I"$(VEX_SDK_PATH)/$(PLATFORM)/include"
+INC += -isystem"$(VEX_SDK_PATH)/$(PLATFORM)/include"
 INC += ${TOOL_INC}

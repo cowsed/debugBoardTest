@@ -1,6 +1,6 @@
 #pragma once
 
-#include "vdb/types.h"
+#include "vdb/types.hpp"
 #include <memory>
 
 #include "vex.h"

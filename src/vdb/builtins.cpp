@@ -1,7 +1,7 @@
-#include "vdb/builtins.h"
+#include "vdb/builtins.hpp"
 
-#include "vdb/protocol.h"
-#include "vdb/types.h"
+#include "vdb/protocol.hpp"
+#include "vdb/types.hpp"
 
 #include "vex_motor.h"
 #include "vex_units.h"
@@ -11,8 +11,8 @@
 
 namespace VDP {
 
-Motor::Motor(std::string name, vex::motor &mot)
-    : Record(std::move(name)), mot(mot), pos(new Float("Position(deg)")),
+Motor::Motor(std::string name, vex::motor &motor)
+    : Record(std::move(name)), mot(motor), pos(new Float("Position(deg)")),
       vel(new Float("velocity(dps)")), temp(new Uint8("Temperature(C)")),
       voltage(new Float("Voltage(V)")), current(new Float("Current(%)")) {
   Record::setFields({pos, vel, temp, voltage, current});

@@ -1,6 +1,6 @@
-#include "cobs_device.h"
+#include "cobs_device.hpp"
 
-COBSSerialDevice::COBSSerialDevice(int32_t port)
+COBSSerialDevice::COBSSerialDevice(uint32_t port)
     : port(port), outbound_packets() {
 
   vexGenericSerialEnable(port, 0x0);
@@ -18,9 +18,9 @@ void COBSSerialDevice::handle_inbound_byte(uint8_t b) {
     if (inbound_packets.size() < MAX_IN_QUEUE_SIZE) {
       inbound_packets.push_front(inbound_buffer);
     } else {
-      printf("COBSSerialDevice Port%ld: Dropping inbound packet. inbound queue "
+      printf("COBSSerialDevice Port%d: Dropping inbound packet. inbound queue "
              "full\n",
-             (port + 1));
+             (int)(port + 1));
     }
     // Starting a new packet now
     inbound_buffer.clear();
@@ -82,16 +82,15 @@ bool COBSSerialDevice::write_packet_if_avail() {
     return did_write;
   }
   const int avail = vexGenericSerialWriteFree(port);
-
   if (avail < (int)outbound_packet.size()) {
     // avail can be -1 for unknown reasons.
     // Signed comparison handles this correctly (as
     // correctly as I can think to).
     vexGenericSerialFlush(port);
   }
-  const size_t wrote = vexGenericSerialTransmit(
+  const int32_t wrote = vexGenericSerialTransmit(
       port, outbound_packet.data(), (int32_t)outbound_packet.size());
-  if (wrote < outbound_packet.size()) {
+  if (wrote < (int32_t)outbound_packet.size()) {
     printf("Unhandled state: Didn't write all that we wanted to, will "
            "probably get packet corruption\n");
   }
@@ -122,13 +121,14 @@ int COBSSerialDevice::serial_thread(void *vself) {
     const int avail = vexGenericSerialReceiveAvail(self.port);
     if (avail > 0) {
       const int read = vexGenericSerialReceive(self.port, buf, buflen);
+      if (read > 0 && read < (int)buflen) {
 
-      self.inbound_mutex.lock();
-      for (int i = 0; i < read; i++) {
-        self.handle_inbound_byte(buf[i]);
+        self.inbound_mutex.lock();
+        for (int i = 0; i < read; i++) {
+          self.handle_inbound_byte(buf[i]);
+        }
+        self.inbound_mutex.unlock();
       }
-      self.inbound_mutex.unlock();
-
       did_something = true;
     }
 
@@ -178,7 +178,7 @@ void COBSSerialDevice::cobs_encode(const Packet &in, WirePacket &out) {
   size_t length = 0;
   while (input_head < in.size()) {
     if (in[input_head] == 0 || length == 255) {
-      out[output_code_head] = code_value;
+      out[output_code_head] = (uint8_t)code_value;
       code_value = 1;
       output_code_head = output_head;
       length = 0;

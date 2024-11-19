@@ -1,4 +1,4 @@
-#include "vdb/protocol.h"
+#include "vdb/protocol.hpp"
 
 #include <cstdint>
 #include <cstring>
@@ -12,12 +12,8 @@
 #include "vex.h"
 #include "vex_vexlink.h"
 
-#include "vdb/device.h"
-#include "vdb/types.h"
-
-#define TODO()                                                                 \
-  printf("UNIMPLEMENTED %s at %s:%d\n", __PRETTY_FUNCTION__, __FILE__,         \
-         __LINE__);
+#include "vdb/device.hpp"
+#include "vdb/types.hpp"
 
 namespace VDP {
 void dump_packet(const Packet &pac) {
@@ -71,8 +67,7 @@ std::string PacketReader::get_string() {
   }
   return s;
 }
-PacketWriter::PacketWriter() : sofar() {}
-PacketWriter::PacketWriter(VDP::Packet scratch) : sofar(scratch) {}
+PacketWriter::PacketWriter(VDP::Packet &scratch) : sofar(scratch) {}
 void PacketWriter::write_byte(uint8_t b) { sofar.push_back(b); }
 
 void PacketWriter::write_type(Type t) { write_byte((uint8_t)t); }
@@ -93,7 +88,7 @@ void PacketWriter::write_channel_acknowledge(const Channel &chan) {
 
   // Header
   write_number<uint8_t>(header);
-  write_number<ChannelID>(chan.id);
+  write_number<ChannelID>(chan.getID());
 
   // Checksum
   auto crc = VDP::crc32_buf(0xFFFFFFFF, sofar.data(), sofar.size());
@@ -103,9 +98,11 @@ void PacketWriter::write_channel_broadcast(const Channel &chan) {
   clear();
   const uint8_t header = make_header_byte(
       PacketHeader{PacketType::Broadcast, PacketFunction::Send});
+  printf("header: %p\n", (void *)&header);
+  printf("header2: %p\n", (void *)this);
   // Header
   write_number<uint8_t>(header);
-  write_number<ChannelID>(chan.id);
+  write_number<ChannelID>(chan.getID());
 
   // Schema Data
   chan.data->write_schema(*this);
@@ -114,13 +111,15 @@ void PacketWriter::write_channel_broadcast(const Channel &chan) {
   auto crc = VDP::crc32_buf(0xFFFFFFFF, sofar.data(), sofar.size());
   write_number<uint32_t>(crc);
 }
-void PacketWriter::write_message(const Channel &chan) {
+void PacketWriter::write_data_message(const Channel &chan) {
   clear();
   const uint8_t header =
       make_header_byte(PacketHeader{PacketType::Data, PacketFunction::Send});
+
   // Header
   write_number<uint8_t>(header);
-  write_number<ChannelID>(chan.id);
+  write_number<ChannelID>(chan.getID());
+
   // Data
   chan.data->write_message(*this);
   // Checksum
@@ -202,7 +201,7 @@ PartPtr make_decoder(PacketReader &pac) {
   }
   return nullptr;
 }
-Channel decode_broadcast(const Packet &packet) {
+std::pair<ChannelID, PartPtr> decode_broadcast(const Packet &packet) {
 
   PacketReader reader(packet);
   // header byte, had to be read to know were a braodcast
@@ -213,4 +212,8 @@ Channel decode_broadcast(const Packet &packet) {
 }
 Part::Part(std::string name) : name(std::move(name)) {}
 
+ChannelID Channel::getID() const { return id; }
+
+Part::~Part() {}
+AbstractDevice::~AbstractDevice() {}
 } // namespace VDP

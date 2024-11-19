@@ -6,11 +6,11 @@
 /*    Description:  V5 project                                                */
 /*                                                                            */
 /*----------------------------------------------------------------------------*/
-#include "vdb/builtins.h"
-#include "vdb/device.h"
-#include "vdb/protocol.h"
-#include "vdb/registry.h"
-#include "vdb/tests.h"
+#include "vdb/builtins.hpp"
+#include "vdb/device.hpp"
+#include "vdb/protocol.hpp"
+#include "vdb/registry.hpp"
+#include "vdb/tests.hpp"
 #include "vex.h"
 #include <thread>
 using namespace vex;
@@ -54,11 +54,8 @@ N Times:
   8xM-0    : Null terminated name of this channel
 
 */
-#define FLUSHWAIT                                                              \
-  fflush(stdout);                                                              \
-  vexDelay(1000);
 
-void print_multiline(std::string str, int y, int x);
+void print_multiline(const std::string &str, int y, int x);
 
 int main() {
   bool ok = VDP::test_all();
@@ -79,33 +76,34 @@ int main() {
 
   vex::motor mot1{vex::PORT11};
   printf("opening channel\n");
-  VDP::Channel chan1 =
-      reg1.open_channel((VDP::PartPtr) new VDP::Motor("my motor", mot1));
+  std::shared_ptr<VDP::Motor> motorData =
+      (std::shared_ptr<VDP::Motor>)new VDP::Motor("my motor", mot1);
 
-  vexDelay(1000);
+  VDP::ChannelID chan1 = reg1.open_channel(motorData);
+  reg1.negotiate();
+
   int count = 0;
   int sent = 0;
   reg2.install_data_callback([&](const VDP::Channel &pac) {
-    // printf("Good packet\n");
+    print_multiline(pac.data->pretty_print_data(), 1, 1);
     count++;
   });
   mot1.spin(vex::fwd, 1.0, vex::volt);
   vex::timer tmr;
   while (tmr.value() < 5.0) {
-    chan1.data->fetch();
-    bool really = reg1.send_data(chan1);
+    motorData->fetch();
+    bool really = reg1.send_data(chan1, motorData);
     if (really) {
       sent++;
     }
     // this_thread::yield();
-    // vexDelay(10);
+    // vexDelay(100);
   }
+  mot1.stop();
   int c2 = count;
   vexDelay(1000);
-  printf(
-      "Got %d decodes with 5 seconds of rapid sending. sent %d device got %d\n",
-      c2, sent, u2.received);
-  printf("%d failed checksum %d too small \n", reg1.num_bad, reg1.num_small);
+  printf("Got %d decodes with 5 seconds of rapid sending. sent %d\n", c2, sent);
+  printf("%d failed checksum %d too small \n", reg2.num_bad, reg2.num_small);
 
   vexDelay(10000);
   return 0;
@@ -125,7 +123,7 @@ int main() {
   //   const VDP::Packet msg = writer.get_packet();
   //   VDP::dump_packet(msg);
 
-  //   // VDP::PacketReader reader{msg};
+  //   // VDP::PacketReader reader{msg};`
   //   // motor_channel.data
   //   // schema->read_from_message(reader);
 
@@ -149,20 +147,17 @@ int main() {
   // mot1.stop();
 }
 
-void print_multiline(std::string str, int y, int x) {
-  int line_count = 0;
-  int line_start = 0;
+void print_multiline(const std::string &str, int y, int x) {
+  size_t line_count = 0;
+  size_t line_start = 0;
   for (size_t i = 0; i < str.size(); i++) {
     if (str[i] == '\n') {
       std::string line = str.substr(line_start, i - line_start);
-      Brain.Screen.setCursor(y + line_count, x);
+      Brain.Screen.setCursor(y + (int)line_count, x);
       Brain.Screen.print("%s", line.c_str());
       line_count++;
       line_start = i + 1;
-    } else if (str[i] == '\r') {
-      str[i] = ' ';
-    } else if (str[i] == '\t') {
-      str[i] = ' ';
+    } else if (str[i] == '\r' || str[i] == '\t') {
     }
   }
 }

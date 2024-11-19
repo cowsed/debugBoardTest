@@ -1,4 +1,4 @@
-#include "vdb/types.h"
+#include "vdb/types.hpp"
 namespace VDP {
 
 Record::Record(std::string name, const std::vector<Part *> &parts)
@@ -81,8 +81,8 @@ void Record::pprint_data(std::stringstream &ss, size_t indent) const {
   ss << "}\n";
 }
 
-String::String(std::string name, std::function<std::string()> fetcher)
-    : Part(std::move(name)), fetcher(std::move(fetcher)) {}
+String::String(std::string field_name, std::function<std::string()> fetcher)
+    : Part(std::move(field_name)), fetcher(std::move(fetcher)) {}
 
 void String::fetch() { value = fetcher(); }
 

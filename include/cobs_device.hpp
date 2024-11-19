@@ -14,13 +14,13 @@ public:
   static constexpr std::size_t MAX_IN_QUEUE_SIZE = 50;
   static constexpr std::size_t baud_rate = 921600;
 
-  COBSSerialDevice(int32_t port);
+  COBSSerialDevice(uint32_t port);
 
   bool send_packet(const Packet &pac);
   void register_recieve_callback(std::function<void(const Packet &)> cb);
 
 private:
-  int32_t port;
+  uint32_t port;
   std::function<void(const Packet &)> packet_callback;
 
   /// @brief Packets that have been encoded and are waiting for their turn

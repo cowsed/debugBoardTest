@@ -1,5 +1,7 @@
 #pragma once
+
 #include "vex.h"
+
 #include <array>
 #include <cstdio>
 #include <cstring>
@@ -7,6 +9,28 @@
 #include <sstream>
 #include <string>
 #include <vector>
+
+// #define VDPTRACE
+// #define VDPDEBUG
+#define VDPWARN
+
+#ifdef VDPWARN
+#define VDPWarnf(fmt, ...) printf("WARN: " fmt "\n", __VA_ARGS__)
+#else
+#define VDPWarnf(...)
+#endif
+
+#ifdef VDPDEBUG
+#define VDPDebugf(fmt, ...) printf("DEBUG: " fmt "\n", __VA_ARGS__)
+#else
+#define VDPDebugf(...)
+#endif
+
+#ifdef VDPTRACE
+#define VDPTracef(fmt, ...) printf("TRACE: " fmt "\n", __VA_ARGS__)
+#else
+#define VDPTracef(...)
+#endif
 
 namespace VDP {
 constexpr size_t MAX_CHANNELS = 256;
@@ -20,15 +44,26 @@ using PartPtr = std::shared_ptr<Part>;
 using Packet = std::vector<uint8_t>;
 
 using ChannelID = uint8_t;
-struct Channel {
-  ChannelID id;
+class Channel {
+public:
+  friend class Registry;
+  explicit Channel(PartPtr schema_data) : data(schema_data) {}
   PartPtr data;
+
+  ChannelID getID() const;
+
+private:
+  Channel(PartPtr schema_data, ChannelID channel_id)
+      : data(schema_data), id(channel_id) {}
+
+  ChannelID id = 0;
   Packet packet_scratch_space;
+  bool acked = false;
   // std::vector
 };
 
 void dump_packet(const Packet &pac);
-Channel decode_broadcast(const Packet &packet);
+std::pair<ChannelID, PartPtr> decode_broadcast(const Packet &packet);
 
 enum class PacketValidity : uint8_t {
   Ok,
@@ -87,7 +122,7 @@ class Part {
 
 public:
   Part(std::string name);
-  virtual ~Part() {}
+  virtual ~Part();
   std::string pretty_print() const;
   std::string pretty_print_data() const;
 
@@ -139,8 +174,7 @@ private:
 
 class PacketWriter {
 public:
-  PacketWriter();
-  PacketWriter(Packet scratch_space);
+  explicit PacketWriter(Packet &scratch_space);
   void clear();
   size_t size();
   void write_byte(uint8_t b);
@@ -150,11 +184,11 @@ public:
 
   void write_channel_acknowledge(const Channel &chan);
   void write_channel_broadcast(const Channel &chan);
-  void write_message(const Channel &part);
+  void write_data_message(const Channel &part);
 
   const Packet &get_packet() const;
 
-  template <typename Number> void write_number(Number num) {
+  template <typename Number> void write_number(const Number &num) {
     std::array<uint8_t, sizeof(Number)> bytes;
     std::memcpy(&bytes, &num, sizeof(Number));
     for (const uint8_t b : bytes) {
@@ -163,7 +197,7 @@ public:
   }
 
 private:
-  Packet sofar;
+  Packet &sofar;
 };
 
 class AbstractDevice {
@@ -174,6 +208,8 @@ public:
   // available
   virtual void register_receive_callback(
       std::function<void(const VDP::Packet &packet)> callback) = 0;
+
+  virtual ~AbstractDevice();
 };
 
 } // namespace VDP
