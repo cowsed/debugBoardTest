@@ -6,6 +6,17 @@
 #include "vex.h"
 namespace VDP {
 
+class Timestamped : public Record {
+public:
+  Timestamped(std::string name, Part *data);
+
+  void fetch();
+
+private:
+  std::shared_ptr<Uint32> timestamp;
+  PartPtr data;
+};
+
 class Motor : public Record {
 public:
   Motor(std::string name, vex::motor &mot);

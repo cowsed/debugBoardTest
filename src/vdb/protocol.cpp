@@ -98,8 +98,6 @@ void PacketWriter::write_channel_broadcast(const Channel &chan) {
   clear();
   const uint8_t header = make_header_byte(
       PacketHeader{PacketType::Broadcast, PacketFunction::Send});
-  printf("header: %p\n", (void *)&header);
-  printf("header2: %p\n", (void *)this);
   // Header
   write_number<uint8_t>(header);
   write_number<ChannelID>(chan.getID());

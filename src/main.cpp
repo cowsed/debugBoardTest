@@ -76,34 +76,42 @@ int main() {
 
   vex::motor mot1{vex::PORT11};
   printf("opening channel\n");
-  std::shared_ptr<VDP::Motor> motorData =
-      (std::shared_ptr<VDP::Motor>)new VDP::Motor("my motor", mot1);
+  auto motorData = (std::shared_ptr<VDP::Timestamped>)new VDP::Timestamped(
+      "motor", new VDP::Motor("motor", mot1));
 
   VDP::ChannelID chan1 = reg1.open_channel(motorData);
   reg1.negotiate();
 
-  int count = 0;
-  int sent = 0;
-  reg2.install_data_callback([&](const VDP::Channel &pac) {
-    print_multiline(pac.data->pretty_print_data(), 1, 1);
-    count++;
-  });
-  mot1.spin(vex::fwd, 1.0, vex::volt);
-  vex::timer tmr;
-  while (tmr.value() < 5.0) {
+  mot1.spin(vex::fwd, 1, vex::volt);
+  while (true) {
     motorData->fetch();
-    bool really = reg1.send_data(chan1, motorData);
-    if (really) {
-      sent++;
-    }
-    // this_thread::yield();
-    // vexDelay(100);
+    reg1.send_data(chan1, motorData);
+    vexDelay(1000);
   }
-  mot1.stop();
-  int c2 = count;
-  vexDelay(1000);
-  printf("Got %d decodes with 5 seconds of rapid sending. sent %d\n", c2, sent);
-  printf("%d failed checksum %d too small \n", reg2.num_bad, reg2.num_small);
+
+  // int count = 0;
+  // int sent = 0;
+  // reg2.install_data_callback([&](const VDP::Channel &pac) {
+  //   print_multiline(pac.data->pretty_print_data(), 1, 1);
+  //   count++;
+  // });
+  // mot1.spin(vex::fwd, 1.0, vex::volt);
+  // vex::timer tmr;
+  // while (tmr.value() < 5.0) {
+  //   motorData->fetch();
+  //   bool really = reg1.send_data(chan1, motorData);
+  //   if (really) {
+  //     sent++;
+  //   }
+  //   // this_thread::yield();
+  //   // vexDelay(100);
+  // }
+  // mot1.stop();
+  // int c2 = count;
+  // vexDelay(1000);
+  // printf("Got %d decodes with 5 seconds of rapid sending. sent %d\n", c2,
+  // sent); printf("%d failed checksum %d too small \n", reg2.num_bad,
+  // reg2.num_small);
 
   vexDelay(10000);
   return 0;

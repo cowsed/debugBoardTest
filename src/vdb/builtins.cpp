@@ -10,6 +10,16 @@
 #include <utility>
 
 namespace VDP {
+Timestamped::Timestamped(std::string name, Part *data)
+    : Record(name),
+      timestamp(new Uint32("timestamp", []() { return vexSystemTimeGet(); })),
+      data(data) {
+  Record::setFields({timestamp, (PartPtr)data});
+}
+void Timestamped::fetch() {
+  timestamp->fetch();
+  data->fetch();
+}
 
 Motor::Motor(std::string name, vex::motor &motor)
     : Record(std::move(name)), mot(motor), pos(new Float("Position(deg)")),
