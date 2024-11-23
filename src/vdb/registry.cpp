@@ -28,11 +28,15 @@ static VDP::PacketValidity validate_packet(const VDP::Packet &packet) {
   if (packet.size() < min_packet_size) {
     return VDP::PacketValidity::TooSmall;
   }
-  auto checksum = crc32_buf(0xFFFFFFFF, packet.data(), packet.size() - 4);
+  auto checksum = CRC32::calculate(packet.data(), packet.size() - 4);
+  printf("CALCULATED CHECKSUM: %08lx\n", checksum);
+
   auto size = packet.size();
   const uint32_t written_checksum =
       (uint32_t(packet[size - 1]) << 24) | (uint32_t(packet[size - 2]) << 16) |
       (uint32_t(packet[size - 3]) << 8) | uint32_t(packet[size - 4]);
+  printf("WRITTEN CHECKSUM: %08lx\n", checksum);
+
   if (checksum != written_checksum) {
     return VDP::PacketValidity::BadChecksum;
   }

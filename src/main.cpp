@@ -58,12 +58,23 @@ N Times:
 void print_multiline(const std::string &str, int y, int x);
 
 int main() {
+  // VDP::Packet inpac = {0, 1, 2, 3, 4};
+  // COBSSerialDevice::WirePacket outpac;
+  // VDP::Packet reinpac = {};
+  // COBSSerialDevice::cobs_encode(inpac, outpac);
+  // COBSSerialDevice::cobs_decode(outpac, reinpac);
+  //
+  // printf("%d to %d to %d\n", inpac.size(), (int)outpac.size(),
+  //  (int)reinpac.size());
+  // return 0;
   bool ok = VDP::test_all();
   if (!ok) {
     printf("STOP THE PRESSES THE TESTS FAILED\n");
   } else {
     printf("Tests pass\n");
   }
+
+  Brain.Screen.printAt(2, 12, "Baud: %d", COBSSerialDevice::baud_rate);
 
   auto u1 = COBSSerialDevice(PORT1);
   auto u2 = COBSSerialDevice(PORT6);
@@ -80,13 +91,20 @@ int main() {
       "motor", new VDP::Motor("motor", mot1));
 
   VDP::ChannelID chan1 = reg1.open_channel(motorData);
-  reg1.negotiate();
+  bool ready = reg1.negotiate();
+  if (!ready) {
+    Brain.Screen.printAt(20, 20, "FAILED");
+    while (1) {
+      vexDelay(1000);
+    };
+    return 1;
+  }
 
   mot1.spin(vex::fwd, 1, vex::volt);
   while (true) {
     motorData->fetch();
     reg1.send_data(chan1, motorData);
-    vexDelay(1000);
+    vexDelay(20);
   }
 
   // int count = 0;

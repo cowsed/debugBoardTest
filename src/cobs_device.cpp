@@ -54,7 +54,15 @@ int COBSSerialDevice::decode_thread(void *vself) {
       continue;
     }
 
+    printf("Incoming packet of  size: %d\n", (int)inbound.size());
+    for (int i = 0; i < inbound.size(); i++) {
+      printf("0x%02x, ", inbound[i]);
+    }
+    printf("\n");
+
     cobs_decode(inbound, decoded);
+
+    printf("decoded packet of size %d\n", (int)decoded.size());
     self.packet_callback(decoded);
 
     // give up control for a bit
@@ -151,9 +159,16 @@ bool COBSSerialDevice::send_packet(const Packet &pac) {
     return false;
   }
 
+  for (uint8_t b : pac) {
+    printf("0x%02x,", b);
+  }
+  printf("\n");
+
   std::vector<uint8_t> encoded;
   cobs_encode(pac, encoded);
 
+  printf("Encoded size was %d from %d\n ", (int)encoded.size(),
+         (int)pac.size());
   outbound_mutex.lock();
   outbound_packets.push_front(encoded);
   outbound_mutex.unlock();

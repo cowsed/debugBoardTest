@@ -91,7 +91,8 @@ void PacketWriter::write_channel_acknowledge(const Channel &chan) {
   write_number<ChannelID>(chan.getID());
 
   // Checksum
-  auto crc = VDP::crc32_buf(0xFFFFFFFF, sofar.data(), sofar.size());
+
+  auto crc = CRC32::calculate(sofar.data(), sofar.size());
   write_number<uint32_t>(crc);
 }
 void PacketWriter::write_channel_broadcast(const Channel &chan) {
@@ -106,7 +107,9 @@ void PacketWriter::write_channel_broadcast(const Channel &chan) {
   chan.data->write_schema(*this);
 
   // Checksum
-  auto crc = VDP::crc32_buf(0xFFFFFFFF, sofar.data(), sofar.size());
+  auto crc = CRC32::calculate(sofar.data(), sofar.size());
+  printf("CHECKSUM: %08lx\n", crc);
+
   write_number<uint32_t>(crc);
 }
 void PacketWriter::write_data_message(const Channel &chan) {
@@ -121,7 +124,7 @@ void PacketWriter::write_data_message(const Channel &chan) {
   // Data
   chan.data->write_message(*this);
   // Checksum
-  auto crc = VDP::crc32_buf(0xFFFFFFFF, sofar.data(), sofar.size());
+  auto crc = CRC32::calculate(sofar.data(), sofar.size());
   write_number<uint32_t>(crc);
 }
 
