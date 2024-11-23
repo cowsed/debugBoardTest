@@ -1,17 +1,21 @@
 #pragma once
-
-#include "vex.h"
-
+#include "vdb/crc32.hpp"
 #include <array>
 #include <cstdio>
 #include <cstring>
+#include <functional>
 #include <memory>
 #include <sstream>
 #include <string>
-#include <vdb/crc32.hpp>
 #include <vector>
+
+namespace VDB {
+uint32_t time_ms();
+void delay_ms(uint32_t ms);
+} // namespace VDB
+
 // #define VDPTRACE
-// #define VDPDEBUG
+#define VDPDEBUG
 #define VDPWARN
 
 #ifdef VDPWARN
@@ -143,7 +147,6 @@ public:
   uint8_t get_byte();
   Type get_type();
   std::string get_string();
-  uint32_t calc_crc32();
 
   template <typename Number> Number get_number() {
     static_assert(std::is_floating_point<Number>::value ||
@@ -198,6 +201,9 @@ private:
 
 class AbstractDevice {
 public:
+  // Send a packet over some transmission medium
+  // It is not specified how the packet reaches the partner
+  // The transmission medium and wire format are left to the user
   virtual bool send_packet(const VDP::Packet &packet) = 0;
 
   // @param callback a function that will be called when a new packet is

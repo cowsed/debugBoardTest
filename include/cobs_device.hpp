@@ -12,7 +12,7 @@ public:
 
   static constexpr std::size_t MAX_OUT_QUEUE_SIZE = 50;
   static constexpr std::size_t MAX_IN_QUEUE_SIZE = 50;
-  static constexpr std::size_t baud_rate = 115200 * 4;
+  static constexpr std::size_t baud_rate = 115200 * 2;
 
   COBSSerialDevice(uint32_t port);
 

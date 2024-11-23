@@ -28,16 +28,17 @@ static VDP::PacketValidity validate_packet(const VDP::Packet &packet) {
   if (packet.size() < min_packet_size) {
     return VDP::PacketValidity::TooSmall;
   }
-  auto checksum = CRC32::calculate(packet.data(), packet.size() - 4);
-  printf("CALCULATED CHECKSUM: %08lx\n", checksum);
+
+  uint32_t checksum = CRC32::calculate(packet.data(), packet.size() - 4);
 
   auto size = packet.size();
   const uint32_t written_checksum =
       (uint32_t(packet[size - 1]) << 24) | (uint32_t(packet[size - 2]) << 16) |
       (uint32_t(packet[size - 3]) << 8) | uint32_t(packet[size - 4]);
-  printf("WRITTEN CHECKSUM: %08lx\n", checksum);
 
   if (checksum != written_checksum) {
+    VDPWarnf("Checksums do not match: expected: %08lx, got: %08lx", checksum,
+             written_checksum);
     return VDP::PacketValidity::BadChecksum;
   }
   return VDP::PacketValidity::Ok;
@@ -61,7 +62,9 @@ void Registry::take_packet(const Packet &pac) {
     return;
   } else if (status == VDP::PacketValidity::TooSmall) {
     num_small++;
-    VDPWarnf("%s: Packet too small to be valid. Skipping", identifier());
+    VDPWarnf("%s: Packet too small to be valid (%d bytes). Skipping",
+             identifier(), (int)pac.size());
+    dump_packet(pac);
     return;
   } else if (status != VDP::PacketValidity::Ok) {
     VDPWarnf("%s: Unknown validity of packet (BAD). Skipping", identifier());
@@ -71,7 +74,10 @@ void Registry::take_packet(const Packet &pac) {
   const VDP::PacketHeader header = VDP::decode_header_byte(pac[0]);
 
   if (header.func == VDP::PacketFunction::Send) {
+    VDPTracef("%s: PacketFunction Send", identifier());
+
     if (header.type == VDP::PacketType::Broadcast) {
+      VDPTracef("%s: PacketType Broadcast", identifier());
       auto decoded = VDP::decode_broadcast(pac);
 
       VDP::Channel chan{decoded.second, decoded.first};
@@ -90,6 +96,7 @@ void Registry::take_packet(const Packet &pac) {
       device->send_packet(writer.get_packet());
 
     } else if (header.type == VDP::PacketType::Data) {
+      VDPTracef("%s: PacketType Data", identifier());
       const ChannelID id = pac[1];
       const PartPtr part = get_remote_schema(id);
       if (part == nullptr) {
@@ -136,20 +143,28 @@ bool Registry::negotiate() {
 
       device->send_packet(pac);
       needs_ack = true;
-      waiting_on_ack_timer.reset();
-      while (waiting_on_ack_timer.time(vex::msec) < ack_ms && !chan.acked) {
-        vexDelay(1);
+
+      auto time = VDB::time_ms();
+      while (!chan.acked) {
+        auto now = VDB::time_ms();
+        if (now - time > ack_ms) {
+          // timed out
+          break;
+        }
+        VDB::delay_ms(5);
       }
       if (chan.acked == true) {
         VDPTracef("%s: Acked channel %d after %d ms on attempt %d",
-                  identifier(), chan.id,
-                  (int)waiting_on_ack_timer.time(vex::msec), (int)j + 1);
+                  identifier(), chan.id, (int)(VDB::time_ms() - time),
+                  (int)j + 1);
         break;
       } else {
         VDPWarnf("%s: ack for chan id:%02x expired after %d msec", identifier(),
                  chan.id, (int)ack_ms);
         failed_acks++;
-        acked_all = false;
+        if (j == broadcast_tries_per - 1) {
+          acked_all = false;
+        }
       }
     }
   }

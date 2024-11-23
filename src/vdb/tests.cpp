@@ -1,6 +1,5 @@
 #include "vdb/tests.hpp"
 #include "vdb/builtins.hpp"
-#include "vdb/device.hpp"
 #include "vdb/protocol.hpp"
 #include "vdb/registry.hpp"
 namespace VDP {

@@ -7,11 +7,11 @@
 /*                                                                            */
 /*----------------------------------------------------------------------------*/
 #include "vdb/builtins.hpp"
-#include "vdb/device.hpp"
 #include "vdb/protocol.hpp"
 #include "vdb/registry.hpp"
 #include "vdb/tests.hpp"
 #include "vex.h"
+#include "wrapper_device.hpp"
 #include <thread>
 using namespace vex;
 
@@ -85,12 +85,23 @@ int main() {
 
   vexDelay(1);
 
+  vex::distance dist1{vex::PORT20};
+
+  auto distData = (std::shared_ptr<VDP::Timestamped>)new VDP::Timestamped(
+      "distance", new VDP::Uint32("distance", [&]() {
+        uint32_t dist = (uint32_t)dist1.objectDistance(vex::distanceUnits::mm);
+        printf("Dist: %d\n", dist);
+        return dist;
+      }));
+
   vex::motor mot1{vex::PORT11};
   printf("opening channel\n");
   auto motorData = (std::shared_ptr<VDP::Timestamped>)new VDP::Timestamped(
       "motor", new VDP::Motor("motor", mot1));
 
   VDP::ChannelID chan1 = reg1.open_channel(motorData);
+  VDP::ChannelID chan2 = reg1.open_channel(distData);
+
   bool ready = reg1.negotiate();
   if (!ready) {
     Brain.Screen.printAt(20, 20, "FAILED");
@@ -103,7 +114,9 @@ int main() {
   mot1.spin(vex::fwd, 1, vex::volt);
   while (true) {
     motorData->fetch();
-    reg1.send_data(chan1, motorData);
+    distData->fetch();
+    // reg1.send_data(chan1, motorData);
+    reg1.send_data(chan2, distData);
     vexDelay(20);
   }
 

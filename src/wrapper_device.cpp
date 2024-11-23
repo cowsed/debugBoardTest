@@ -3,10 +3,13 @@
 #include <cstdio>
 #include <vector>
 
-#include "cobs_device.hpp"
-#include "vdb/device.hpp"
 #include "vdb/protocol.hpp"
+#include "wrapper_device.hpp"
+
 namespace VDB {
+void delay_ms(uint32_t ms) { vexDelay(ms); }
+uint32_t time_ms() { return vexSystemTimeGet(); }
+
 Device::Device(COBSSerialDevice &underlying_device)
     : underlying(underlying_device) {}
 

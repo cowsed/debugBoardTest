@@ -42,7 +42,6 @@ private:
   }
 
   Side reg_type;
-  vex::timer waiting_on_ack_timer;
   bool needs_ack = false;
   static constexpr size_t ack_ms = 500;
 

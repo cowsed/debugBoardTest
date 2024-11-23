@@ -9,10 +9,6 @@
 #include <utility>
 #include <vector>
 
-#include "vex.h"
-#include "vex_vexlink.h"
-
-#include "vdb/device.hpp"
 #include "vdb/types.hpp"
 
 namespace VDP {
@@ -91,8 +87,7 @@ void PacketWriter::write_channel_acknowledge(const Channel &chan) {
   write_number<ChannelID>(chan.getID());
 
   // Checksum
-
-  auto crc = CRC32::calculate(sofar.data(), sofar.size());
+  uint32_t crc = CRC32::calculate(sofar.data(), sofar.size());
   write_number<uint32_t>(crc);
 }
 void PacketWriter::write_channel_broadcast(const Channel &chan) {
@@ -107,8 +102,7 @@ void PacketWriter::write_channel_broadcast(const Channel &chan) {
   chan.data->write_schema(*this);
 
   // Checksum
-  auto crc = CRC32::calculate(sofar.data(), sofar.size());
-  printf("CHECKSUM: %08lx\n", crc);
+  uint32_t crc = CRC32::calculate(sofar.data(), sofar.size());
 
   write_number<uint32_t>(crc);
 }
@@ -124,7 +118,7 @@ void PacketWriter::write_data_message(const Channel &chan) {
   // Data
   chan.data->write_message(*this);
   // Checksum
-  auto crc = CRC32::calculate(sofar.data(), sofar.size());
+  uint32_t crc = CRC32::calculate(sofar.data(), sofar.size());
   write_number<uint32_t>(crc);
 }
 
@@ -203,7 +197,7 @@ PartPtr make_decoder(PacketReader &pac) {
   return nullptr;
 }
 std::pair<ChannelID, PartPtr> decode_broadcast(const Packet &packet) {
-
+  VDPTracef("Decoding broadcast of size: %d", (int)packet.size());
   PacketReader reader(packet);
   // header byte, had to be read to know were a braodcast
   (void)reader.get_byte();
