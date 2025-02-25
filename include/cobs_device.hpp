@@ -10,18 +10,20 @@ public:
   using WirePacket = std::vector<uint8_t>; // 0x00 delimeted, cobs encoded
   using Packet = std::vector<uint8_t>;
 
+  static constexpr int32_t NO_ACTIVITY_DELAY = 2; // ms
   static constexpr std::size_t MAX_OUT_QUEUE_SIZE = 50;
   static constexpr std::size_t MAX_IN_QUEUE_SIZE = 50;
-  static constexpr std::size_t baud_rate = 115200 * 2;
 
-  COBSSerialDevice(uint32_t port);
+  COBSSerialDevice(int32_t port, int32_t baud_rate);
+  virtual ~COBSSerialDevice() {}
 
-  bool send_packet(const Packet &pac);
-  void register_recieve_callback(std::function<void(const Packet &)> cb);
+protected:
+  bool send_cobs_packet(const Packet &pac);
+  virtual void cobs_packet_callback(const Packet &pac) = 0;
 
-  // private:
-  uint32_t port;
-  std::function<void(const Packet &)> packet_callback;
+private:
+  int32_t port;
+  int32_t baud_rate;
 
   /// @brief Packets that have been encoded and are waiting for their turn
   /// to be sent out on the wire

@@ -1,7 +1,7 @@
 #include "cobs_device.hpp"
 
-COBSSerialDevice::COBSSerialDevice(uint32_t port)
-    : port(port), outbound_packets() {
+COBSSerialDevice::COBSSerialDevice(int32_t port, int32_t baud_rate)
+    : port(port), baud_rate(baud_rate), outbound_packets() {
 
   vexGenericSerialEnable(port, 0x0);
   vexGenericSerialBaudrate(port, baud_rate);
@@ -36,44 +36,27 @@ int COBSSerialDevice::decode_thread(void *vself) {
 
   while (true) {
 
-    self.inbound_mutex.lock();
-
     WirePacket inbound = {};
-    if (self.inbound_packets.size() > 0) {
-      inbound = self.inbound_packets.back();
-      self.inbound_packets.pop_back();
+    {
+      self.inbound_mutex.lock();
+
+      if (self.inbound_packets.size() > 0) {
+        inbound = self.inbound_packets.back();
+        self.inbound_packets.pop_back();
+      }
+      self.inbound_mutex.unlock();
     }
-    self.inbound_mutex.unlock();
-
+    // Theres no packet to decode
     if (inbound.size() == 0) {
-      // no packet read, wait a bit then see if we have anything to do
-      // printf("waiting inbound\n");
-      // vexDelay(1);
-      vex::this_thread::yield();
-
+      vexDelay(NO_ACTIVITY_DELAY);
       continue;
     }
 
-    printf("Incoming packet of  size: %d\n", (int)inbound.size());
-    for (int i = 0; i < inbound.size(); i++) {
-      printf("0x%02x, ", inbound[i]);
-    }
-    printf("\n");
-
     cobs_decode(inbound, decoded);
 
-    printf("decoded packet of size %d\n", (int)decoded.size());
-    self.packet_callback(decoded);
-
-    // give up control for a bit
-    vex::this_thread::yield();
+    self.cobs_packet_callback(decoded);
   }
   return 0;
-}
-
-void COBSSerialDevice::register_recieve_callback(
-    std::function<void(const Packet &)> cb) {
-  packet_callback = cb;
 }
 
 bool COBSSerialDevice::write_packet_if_avail() {
@@ -141,16 +124,13 @@ int COBSSerialDevice::serial_thread(void *vself) {
     }
 
     if (!did_something) {
-      // dont consume all the resources if theres nothing to do
-      // printf("delaiing outboun\n");
-      // vexDelay(1);
-      vex::this_thread::yield();
+      vexDelay(NO_ACTIVITY_DELAY);
     }
   }
   return 0;
 }
 
-bool COBSSerialDevice::send_packet(const Packet &pac) {
+bool COBSSerialDevice::send_cobs_packet(const Packet &pac) {
   outbound_mutex.lock();
   size_t size = outbound_packets.size();
   outbound_mutex.unlock();

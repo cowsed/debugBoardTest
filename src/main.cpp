@@ -18,46 +18,19 @@ using namespace vex;
 // A global instance of vex::brain used for printing to the V5 brain screen
 vex::brain Brain;
 
-/*
-brain = peripheral
-esp = controller
-
-advertise message, data message
-controller->peripheral (esp to brain)
-preipheral->controller (brain to esp)
-
-types:
-- string (null terminated)
-- double
-  8 bytes, a classic
-- uint64
-- byte
-- list
-  length terminated
-- keyed-list
-  length terminated: keys in schema
-
-target: id: subsystem
-- channel: data
-  - datatype
-
-
-Header:
-is_peripheral: 1
-type: 1
-version: 6
-
-Advertise
-1tvvvvvv : Header
-xxxxxxxx : Number of Fields (0-255) (N)
-N Times:
-  8xM-0    : Null terminated name of this channel
-
-*/
-
 void print_multiline(const std::string &str, int y, int x);
 
+VDB::Device dev1{vex::PORT6, 115200 * 8};
+VDB::Device dev2{vex::PORT10, 115200 * 8};
+VDP::Registry reg1{&dev1, VDP::Registry::Side::Controller};
+VDP::Registry reg2{&dev2, VDP::Registry::Side::Listener};
+
 int main() {
+  // while (true) {
+  //   printf("tihnkging\n");
+  //   vexDelay(1000);
+  // }
+  // return 0;
   // VDP::Packet inpac = {0, 1, 2, 3, 4};
   // COBSSerialDevice::WirePacket outpac;
   // VDP::Packet reinpac = {};
@@ -67,23 +40,14 @@ int main() {
   // printf("%d to %d to %d\n", inpac.size(), (int)outpac.size(),
   //  (int)reinpac.size());
   // return 0;
-  bool ok = VDP::test_all();
-  if (!ok) {
-    printf("STOP THE PRESSES THE TESTS FAILED\n");
-  } else {
-    printf("Tests pass\n");
-  }
-
-  Brain.Screen.printAt(2, 12, "Baud: %d", COBSSerialDevice::baud_rate);
-
-  auto u1 = COBSSerialDevice(PORT1);
-  auto u2 = COBSSerialDevice(PORT6);
-  VDB::Device dev1{u1};
-  VDB::Device dev2{u2};
-  VDP::Registry reg1{&dev1, VDP::Registry::Side::Controller};
-  VDP::Registry reg2{&dev2, VDP::Registry::Side::Listener};
-
-  vexDelay(1);
+  // bool ok = VDP::test_all();
+  // if (!ok) {
+  // printf("STOP THE PRESSES THE TESTS FAILED\n");
+  // } else {
+  // printf("Tests pass\n");
+  // }
+  //
+  // vexDelay(1);
 
   vex::distance dist1{vex::PORT20};
 
@@ -117,7 +81,7 @@ int main() {
     distData->fetch();
     // reg1.send_data(chan1, motorData);
     reg1.send_data(chan2, distData);
-    vexDelay(20);
+    vexDelay(1);
   }
 
   // int count = 0;

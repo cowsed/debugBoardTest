@@ -3,7 +3,10 @@
 namespace VDP {
 Registry::Registry(AbstractDevice *device, Side reg_type)
     : reg_type(reg_type), device(device) {
-  device->register_receive_callback([&](const Packet &p) { take_packet(p); });
+  device->register_receive_callback([&](const Packet &p) {
+    printf("GOT PACKET\n");
+    take_packet(p);
+  });
 }
 
 const char *Registry::identifier() {
