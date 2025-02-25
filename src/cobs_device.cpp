@@ -3,9 +3,6 @@
 COBSSerialDevice::COBSSerialDevice(int32_t port, int32_t baud_rate)
     : port(port), baud_rate(baud_rate), outbound_packets() {
 
-  vexGenericSerialEnable(port, 0x0);
-  vexGenericSerialBaudrate(port, baud_rate);
-
   serial_task = vex::task(COBSSerialDevice::serial_thread, (void *)this,
                           vex::thread::threadPriorityHigh);
   decode_task = vex::task(COBSSerialDevice::decode_thread, (void *)this,
@@ -92,6 +89,9 @@ bool COBSSerialDevice::write_packet_if_avail() {
 
 int COBSSerialDevice::serial_thread(void *vself) {
   COBSSerialDevice &self = *(COBSSerialDevice *)vself;
+
+  vexGenericSerialEnable(self.port, 0x0);
+  vexGenericSerialBaudrate(self.port, self.baud_rate);
 
   static constexpr size_t buflen = 4096;
   static uint8_t buf[buflen] = {0};
