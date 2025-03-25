@@ -20,43 +20,12 @@ vex::brain Brain;
 
 void print_multiline(const std::string &str, int y, int x);
 
-VDB::Device dev1{vex::PORT6, 115200 * 8};
-VDB::Device dev2{vex::PORT10, 115200 * 8};
+VDB::Device dev1{vex::PORT1, 115200 * 2};
+// VDB::Device dev2{vex::PORT10, 115200 * 8};
 VDP::Registry reg1{&dev1, VDP::Registry::Side::Controller};
-VDP::Registry reg2{&dev2, VDP::Registry::Side::Listener};
+// VDP::Registry reg2{&dev2, VDP::Registry::Side::Listener};
 
 int main() {
-  // while (true) {
-  //   printf("tihnkging\n");
-  //   vexDelay(1000);
-  // }
-  // return 0;
-  // VDP::Packet inpac = {0, 1, 2, 3, 4};
-  // COBSSerialDevice::WirePacket outpac;
-  // VDP::Packet reinpac = {};
-  // COBSSerialDevice::cobs_encode(inpac, outpac);
-  // COBSSerialDevice::cobs_decode(outpac, reinpac);
-  //
-  // printf("%d to %d to %d\n", inpac.size(), (int)outpac.size(),
-  //  (int)reinpac.size());
-  // return 0;
-  // bool ok = VDP::test_all();
-  // if (!ok) {
-  // printf("STOP THE PRESSES THE TESTS FAILED\n");
-  // } else {
-  // printf("Tests pass\n");
-  // }
-  //
-  // vexDelay(1);
-
-  vex::distance dist1{vex::PORT20};
-
-  auto distData = (std::shared_ptr<VDP::Timestamped>)new VDP::Timestamped(
-      "distance", new VDP::Uint32("distance", [&]() {
-        uint32_t dist = (uint32_t)dist1.objectDistance(vex::distanceUnits::mm);
-        printf("Dist: %d\n", dist);
-        return dist;
-      }));
 
   vex::motor mot1{vex::PORT11};
   printf("opening channel\n");
@@ -64,7 +33,7 @@ int main() {
       "motor", new VDP::Motor("motor", mot1));
 
   VDP::ChannelID chan1 = reg1.open_channel(motorData);
-  VDP::ChannelID chan2 = reg1.open_channel(distData);
+  // VDP::ChannelID chan2 = reg1.open_channel(distData);
 
   bool ready = reg1.negotiate();
   if (!ready) {
@@ -74,14 +43,14 @@ int main() {
     };
     return 1;
   }
-
   mot1.spin(vex::fwd, 1, vex::volt);
+
   while (true) {
     motorData->fetch();
-    distData->fetch();
-    // reg1.send_data(chan1, motorData);
-    reg1.send_data(chan2, distData);
-    vexDelay(1);
+    // distData->fetch();
+    reg1.send_data(chan1, motorData);
+    // reg1.send_data(chan2, distData);
+    vexDelay(100);
   }
 
   // int count = 0;
